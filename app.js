@@ -2,12 +2,16 @@
 
 // ─── STORE ───────────────────────────────────────────────────────────────────
 const STORE_KEY = 'garagetrack_v1';
+const API_KEY_STORE = 'garagetrack_apikey';
 
 function load() {
   try { return JSON.parse(localStorage.getItem(STORE_KEY)) || { projets: [], depenses: [], sessions: [] }; }
   catch { return { projets: [], depenses: [], sessions: [] }; }
 }
 function save(d) { try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch(e) { toast('Erreur de sauvegarde'); } }
+
+function getApiKey() { return localStorage.getItem(API_KEY_STORE) || ''; }
+function saveApiKey(k) { localStorage.setItem(API_KEY_STORE, k); }
 
 let db = load();
 
@@ -69,6 +73,117 @@ function getPhotoData(inputId) {
   });
 }
 
+// ─── API KEY MODAL ───────────────────────────────────────────────────────────
+function openApiKeyModal() {
+  document.getElementById('api-key-input').value = getApiKey();
+  openModal('modal-api-key');
+}
+
+function saveApiKeyFromModal() {
+  const k = document.getElementById('api-key-input').value.trim();
+  if (!k.startsWith('sk-ant-')) { toast('Clé invalide (doit commencer par sk-ant-)'); return; }
+  saveApiKey(k);
+  closeModal('modal-api-key');
+  toast('Clé API enregistrée ✓');
+}
+
+// ─── RECONNAISSANCE FACTURE ──────────────────────────────────────────────────
+async function analyserFacture() {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    toast('Configure ta clé API d\'abord');
+    openApiKeyModal();
+    return;
+  }
+
+  const input = document.getElementById('dep-photo-input');
+  if (!input.files[0]) {
+    toast('Prends d\'abord une photo de la facture');
+    return;
+  }
+
+  const btn = document.getElementById('btn-analyser');
+  btn.textContent = 'Analyse en cours...';
+  btn.disabled = true;
+
+  try {
+    const photoData = await getPhotoData('dep-photo-input');
+    const base64 = photoData.split(',')[1];
+    const mediaType = input.files[0].type || 'image/jpeg';
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: mediaType, data: base64 }
+            },
+            {
+              type: 'text',
+              text: `Tu es un assistant qui analyse des factures de pièces automobiles.
+Réponds UNIQUEMENT en JSON valide, sans markdown, sans explication :
+{
+  "description": "nom court de la pièce ou du service (max 40 caractères)",
+  "montant": 12.50,
+  "fournisseur": "nom du magasin ou site web si visible, sinon null",
+  "categorie": "une valeur parmi: Pièces mécaniques, Carrosserie, Électrique, Fluides / consommables, Outillage, Autre"
+}
+Si tu ne vois pas de facture ou pas de montant, réponds: {"erreur": "Facture non lisible"}`
+            }
+          ]
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || 'Erreur API');
+    }
+
+    const data = await response.json();
+    const text = data.content[0].text.trim();
+    const result = JSON.parse(text);
+
+    if (result.erreur) {
+      toast(result.erreur);
+      return;
+    }
+
+    // Remplir les champs automatiquement
+    if (result.description) document.getElementById('dep-desc').value = result.description;
+    if (result.montant) document.getElementById('dep-montant').value = result.montant;
+    if (result.fournisseur) document.getElementById('dep-fourn').value = result.fournisseur;
+    if (result.categorie) {
+      const sel = document.getElementById('dep-cat');
+      for (let opt of sel.options) {
+        if (opt.value === result.categorie) { sel.value = result.categorie; break; }
+      }
+    }
+
+    toast('Facture analysée ✓ Vérifie les infos');
+
+  } catch (e) {
+    console.error(e);
+    if (e.message.includes('401')) toast('Clé API incorrecte');
+    else if (e.message.includes('429')) toast('Limite atteinte, réessaie dans quelques secondes');
+    else toast('Erreur : ' + e.message.slice(0, 50));
+  } finally {
+    btn.textContent = 'Analyser avec l\'IA';
+    btn.disabled = false;
+  }
+}
+
 // ─── SELECT HELPERS ──────────────────────────────────────────────────────────
 function fillSelect(id) {
   const s = document.getElementById(id);
@@ -117,7 +232,6 @@ function openProjetDetail(id) {
   if (!p) return;
   document.getElementById('detail-titre').textContent = p.nom;
   const deps = db.depenses.filter(d => d.projetId === id).reduce((a, d) => a + d.montant, 0);
-  const hrs = db.sessions.filter(s => s.projetId === id).reduce((a, s) => a + s.duree, 0);
   const body = document.getElementById('detail-body');
   body.innerHTML = `
     ${p.photo ? `<img src="${p.photo}" style="width:100%;border-radius:10px;margin-bottom:8px" />` : ''}
@@ -191,7 +305,6 @@ function renderDepenses() {
     <div class="metric-card"><div class="metric-lbl">Budget estimé</div><div class="metric-val">${fmtInt(budget)}</div></div>
   `;
 
-  // Chart par catégorie
   const cats = {};
   deps.forEach(d => { cats[d.cat] = (cats[d.cat] || 0) + d.montant; });
   const catEntries = Object.entries(cats).sort((a, b) => b[1] - a[1]);
@@ -407,7 +520,6 @@ function renderBilan() {
       <span class="cat-bar-amt">${fmtInt(v)}</span>
     </div>`).join('');
 
-  // Timeline mensuelle
   const byMonth = {};
   deps.forEach(d => {
     const m = (d.date||'').slice(0,7);
@@ -462,6 +574,9 @@ document.getElementById('tps-date').value = today();
 setTimeout(() => {
   document.getElementById('splash').classList.add('hidden');
   renderProjets();
+  if (!getApiKey()) {
+    setTimeout(() => toast('Configure ta clé API dans Dépenses → ⚙'), 1500);
+  }
 }, 1000);
 
 if ('serviceWorker' in navigator) {

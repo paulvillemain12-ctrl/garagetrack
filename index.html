@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>GarageTrack</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GarageTrack" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- SPLASH -->
+    <div id="splash">
+      <div class="splash-logo">
+        <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+          <rect width="56" height="56" rx="14" fill="#E8FF3D"/>
+          <path d="M10 34 L18 20 L28 28 L36 16 L46 34" stroke="#0a0a0a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="28" cy="40" r="4" fill="#0a0a0a"/>
+          <circle cx="18" cy="40" r="4" fill="#0a0a0a"/>
+          <circle cx="38" cy="40" r="4" fill="#0a0a0a"/>
+        </svg>
+      </div>
+      <h1 class="splash-title">GARAGE<span>TRACK</span></h1>
+    </div>
+
+    <!-- NAV -->
+    <nav id="bottom-nav">
+      <button class="nav-item active" data-page="projets" onclick="navigate('projets')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        <span>Projets</span>
+      </button>
+      <button class="nav-item" data-page="depenses" onclick="navigate('depenses')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>Dépenses</span>
+      </button>
+      <button class="nav-item" data-page="temps" onclick="navigate('temps')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Temps</span>
+      </button>
+      <button class="nav-item" data-page="bilan" onclick="navigate('bilan')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Bilan</span>
+      </button>
+    </nav>
+
+    <!-- PAGES -->
+    <main id="main">
+
+      <!-- PROJETS -->
+      <div id="page-projets" class="page active">
+        <div class="page-header">
+          <h2 class="page-title">MES PROJETS</h2>
+          <button class="btn-icon" onclick="openModal('modal-new-projet')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+        <div id="proj-list" class="proj-list"></div>
+        <div id="proj-empty" class="empty-state" style="display:none">
+          <div class="empty-icon">🔧</div>
+          <p>Aucun projet pour l'instant</p>
+          <button class="btn-primary" onclick="openModal('modal-new-projet')">Créer un projet</button>
+        </div>
+      </div>
+
+      <!-- DEPENSES -->
+      <div id="page-depenses" class="page">
+        <div class="page-header">
+          <h2 class="page-title">DÉPENSES</h2>
+          <button class="btn-icon" onclick="openModal('modal-new-dep')">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+        <div class="proj-selector-wrap">
+          <select id="dep-projet" class="proj-selector" onchange="renderDepenses()"></select>
+        </div>
+        <div id="dep-metrics" class="metrics-row"></div>
+        <div id="dep-chart-wrap" style="margin:0 16px 16px;display:none">
+          <canvas id="dep-chart" height="160"></canvas>
+        </div>
+        <div id="dep-list"></div>
+      </div>
+
+      <!-- TEMPS -->
+      <div id="page-temps" class="page">
+        <div class="page-header">
+          <h2 class="page-title">TEMPS</h2>
+        </div>
+        <div class="proj-selector-wrap">
+          <select id="tps-projet" class="proj-selector" onchange="renderTemps()"></select>
+        </div>
+        <div class="timer-card">
+          <div id="timer-display" class="timer-display">00:00:00</div>
+          <div id="timer-status" class="timer-status">Chrono arrêté</div>
+          <div class="timer-actions">
+            <button id="timer-btn" class="btn-primary" onclick="toggleTimer()">Démarrer</button>
+            <button class="btn-secondary" onclick="resetTimer()">Reset</button>
+          </div>
+          <div class="timer-save" id="timer-save" style="display:none">
+            <input id="tps-desc-timer" class="input" placeholder="Description de la session..." />
+            <button class="btn-accent" onclick="saveTimerSession()">Enregistrer cette session</button>
+          </div>
+        </div>
+        <div style="padding:0 16px;margin-bottom:12px">
+          <button class="btn-secondary full-width" onclick="openModal('modal-new-session')">+ Saisie manuelle</button>
+        </div>
+        <div id="tps-list"></div>
+      </div>
+
+      <!-- BILAN -->
+      <div id="page-bilan" class="page">
+        <div class="page-header">
+          <h2 class="page-title">BILAN</h2>
+        </div>
+        <div class="proj-selector-wrap">
+          <select id="bilan-projet" class="proj-selector" onchange="renderBilan()"></select>
+        </div>
+        <div id="bilan-content"></div>
+      </div>
+
+    </main>
+
+    <!-- MODAL NOUVEAU PROJET -->
+    <div id="modal-new-projet" class="modal-overlay" onclick="closeModalOutside(event,'modal-new-projet')">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Nouveau projet</h3>
+          <button class="btn-icon" onclick="closeModal('modal-new-projet')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="photo-upload-zone" id="proj-photo-zone" onclick="document.getElementById('proj-photo-input').click()">
+            <img id="proj-photo-preview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px"/>
+            <div id="proj-photo-placeholder">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Photo de la voiture</span>
+            </div>
+          </div>
+          <input type="file" id="proj-photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this,'proj-photo-preview','proj-photo-placeholder')"/>
+          <div class="form-group">
+            <label>Nom / modèle *</label>
+            <input id="np-nom" class="input" placeholder="Ex: Golf GTI mk5" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Immatriculation</label>
+              <input id="np-immat" class="input" placeholder="AB-123-CD" />
+            </div>
+            <div class="form-group">
+              <label>Année</label>
+              <input id="np-annee" class="input" type="number" placeholder="2005" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Prix d'achat (€)</label>
+              <input id="np-achat" class="input" type="number" placeholder="1200" />
+            </div>
+            <div class="form-group">
+              <label>Budget pièces (€)</label>
+              <input id="np-budget" class="input" type="number" placeholder="2000" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Prix de revente visé (€)</label>
+            <input id="np-revente" class="input" type="number" placeholder="3500" />
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea id="np-notes" class="input textarea" placeholder="Travaux prévus, état général..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary full-width" onclick="addProjet()">Créer le projet</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL DETAIL PROJET -->
+    <div id="modal-detail-projet" class="modal-overlay" onclick="closeModalOutside(event,'modal-detail-projet')">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="detail-titre">Projet</h3>
+          <button class="btn-icon" onclick="closeModal('modal-detail-projet')">✕</button>
+        </div>
+        <div class="modal-body" id="detail-body"></div>
+        <div class="modal-footer" id="detail-footer"></div>
+      </div>
+    </div>
+
+    <!-- MODAL NOUVELLE DEPENSE -->
+    <div id="modal-new-dep" class="modal-overlay" onclick="closeModalOutside(event,'modal-new-dep')">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Nouvelle dépense</h3>
+          <button class="btn-icon" onclick="closeModal('modal-new-dep')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="photo-upload-zone small" id="dep-photo-zone" onclick="document.getElementById('dep-photo-input').click()">
+            <img id="dep-photo-preview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:8px"/>
+            <div id="dep-photo-placeholder">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Photo facture</span>
+            </div>
+          </div>
+          <input type="file" id="dep-photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this,'dep-photo-preview','dep-photo-placeholder')"/>
+          <div class="form-group">
+            <label>Description *</label>
+            <input id="dep-desc" class="input" placeholder="Plaquettes de frein avant..." />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Montant (€) *</label>
+              <input id="dep-montant" class="input" type="number" step="0.01" placeholder="0.00" />
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input id="dep-date" class="input" type="date" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Fournisseur</label>
+              <input id="dep-fourn" class="input" placeholder="GSF, LKQ, eBay..." />
+            </div>
+            <div class="form-group">
+              <label>Catégorie</label>
+              <select id="dep-cat" class="input">
+                <option>Pièces mécaniques</option>
+                <option>Carrosserie</option>
+                <option>Électrique</option>
+                <option>Fluides / consommables</option>
+                <option>Outillage</option>
+                <option>Autre</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary full-width" onclick="addDepense()">Ajouter la dépense</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL SESSION MANUELLE -->
+    <div id="modal-new-session" class="modal-overlay" onclick="closeModalOutside(event,'modal-new-session')">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Saisie manuelle</h3>
+          <button class="btn-icon" onclick="closeModal('modal-new-session')">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Description</label>
+            <input id="tps-desc" class="input" placeholder="Dépose moteur, vidange..." />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Durée (heures)</label>
+              <input id="tps-duree" class="input" type="number" step="0.25" placeholder="1.5" />
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input id="tps-date" class="input" type="date" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Checklist des tâches effectuées</label>
+            <div id="task-quick-list"></div>
+            <div class="form-row" style="margin-top:8px">
+              <input id="new-task-input" class="input" placeholder="Ajouter une tâche..." style="flex:1"/>
+              <button class="btn-secondary" onclick="addQuickTask()">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary full-width" onclick="addSession()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

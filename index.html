@@ -51,12 +51,19 @@
     </nav>
 
     <!-- PAGES -->
+    <div id="backup-banner" style="display:none;background:#1a2a1a;border-bottom:0.5px solid #39d353;padding:10px 16px;align-items:center;gap:10px;position:sticky;top:0;z-index:80">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#39d353" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span style="flex:1;font-size:13px;color:#39d353">Pas de sauvegarde depuis 7 jours</span>
+      <button onclick="openBackupModal()" style="background:#39d353;color:#0a0a0a;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">Sauvegarder</button>
+      <button onclick="dismissBackupBanner()" style="background:none;border:none;color:#39d353;font-size:18px;cursor:pointer;padding:0 4px">x</button>
+    </div>
     <main id="main">
 
       <!-- PROJETS -->
       <div id="page-projets" class="page active">
         <div class="page-header">
           <h2 class="page-title">MES PROJETS</h2>
+          <button class="btn-icon" onclick="openBackupModal()" style="margin-right:8px" title="Sauvegarde"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
           <button class="btn-icon" onclick="openModal('modal-new-projet')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
@@ -304,6 +311,30 @@
         </div>
         <div class="modal-footer">
           <button class="btn-primary full-width" onclick="saveApiKeyFromModal()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+    <div id="modal-backup" class="modal-overlay" onclick="closeModalOutside(event,'modal-backup')">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Sauvegarde</h3>
+          <button class="btn-icon" onclick="closeModal('modal-backup')">x</button>
+        </div>
+        <div class="modal-body">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+            Derniere sauvegarde : <strong id="backup-last-date">—</strong>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <button class="btn-primary full-width" onclick="exportBackup()">
+              Telecharger la sauvegarde (.json)
+            </button>
+            <button class="btn-secondary full-width" onclick="importBackup()">
+              Restaurer depuis un fichier
+            </button>
+          </div>
+          <div style="font-size:12px;color:var(--text3);margin-top:14px;line-height:1.6">
+            Le fichier JSON contient tous tes projets, depenses et sessions. Stocke-le dans iCloud ou envoie-le par email pour ne pas le perdre.
+          </div>
         </div>
       </div>
     </div>

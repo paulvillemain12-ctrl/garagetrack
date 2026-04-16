@@ -567,6 +567,80 @@ function renderBilan() {
   }
 }
 
+// ─── BACKUP / RESTORE ────────────────────────────────────────────────────────
+const BACKUP_DATE_KEY = 'garagetrack_last_backup';
+
+function exportBackup() {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    db: db
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = today().replace(/-/g, '');
+  a.href = url;
+  a.download = `garagetrack-backup-${dateStr}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  localStorage.setItem(BACKUP_DATE_KEY, Date.now().toString());
+  toast('Sauvegarde téléchargée ✓');
+  closeModal('modal-backup');
+}
+
+function importBackup() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if (!parsed.db || !parsed.db.projets) throw new Error('Fichier invalide');
+        if (!confirm(`Restaurer ${parsed.db.projets.length} projet(s) depuis le ${fmtDate(parsed.exportedAt?.slice(0,10))} ?\n\nTes données actuelles seront remplacées.`)) return;
+        db = parsed.db;
+        save(db);
+        closeModal('modal-backup');
+        renderProjets();
+        toast(`${db.projets.length} projet(s) restauré(s) ✓`);
+      } catch(err) {
+        toast('Fichier invalide ou corrompu');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function checkBackupReminder() {
+  const last = parseInt(localStorage.getItem(BACKUP_DATE_KEY) || '0');
+  const daysSince = (Date.now() - last) / (1000 * 60 * 60 * 24);
+  const hasData = db.projets.length > 0;
+  if (hasData && daysSince >= 7) {
+    setTimeout(() => {
+      const banner = document.getElementById('backup-banner');
+      if (banner) banner.style.display = 'flex';
+    }, 2000);
+  }
+}
+
+function dismissBackupBanner() {
+  const banner = document.getElementById('backup-banner');
+  if (banner) banner.style.display = 'none';
+}
+
+function openBackupModal() {
+  const last = parseInt(localStorage.getItem(BACKUP_DATE_KEY) || '0');
+  const lastStr = last ? fmtDate(new Date(last).toISOString().slice(0,10)) : 'Jamais';
+  document.getElementById('backup-last-date').textContent = lastStr;
+  dismissBackupBanner();
+  openModal('modal-backup');
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 document.getElementById('dep-date').value = today();
 document.getElementById('tps-date').value = today();
@@ -574,6 +648,7 @@ document.getElementById('tps-date').value = today();
 setTimeout(() => {
   document.getElementById('splash').classList.add('hidden');
   renderProjets();
+  checkBackupReminder();
   if (!getApiKey()) {
     setTimeout(() => toast('Configure ta clé API dans Dépenses → ⚙'), 1500);
   }

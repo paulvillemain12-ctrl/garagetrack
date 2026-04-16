@@ -6,7 +6,7 @@
   <title>GarageTrack</title>
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#0a0a0a" />
-  
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="GarageTrack" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
@@ -73,6 +73,7 @@
       <div id="page-depenses" class="page">
         <div class="page-header">
           <h2 class="page-title">DÉPENSES</h2>
+          <button class="btn-icon" onclick="openApiKeyModal()" style="margin-right:8px" title="Cle API"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></button>
           <button class="btn-icon" onclick="openModal('modal-new-dep')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
@@ -209,6 +210,7 @@
             </div>
           </div>
           <input type="file" id="dep-photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this,'dep-photo-preview','dep-photo-placeholder')"/>
+          <button id="btn-analyser" class="btn-accent" onclick="analyserFacture()" style="margin-top:8px">Analyser avec l'IA</button>
           <div class="form-group">
             <label>Description *</label>
             <input id="dep-desc" class="input" placeholder="Plaquettes de frein avant..." />
@@ -284,6 +286,27 @@
       </div>
     </div>
 
+    <div id="modal-api-key" class="modal-overlay" onclick="closeModalOutside(event,'modal-api-key')">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Cle API Anthropic</h3>
+          <button class="btn-icon" onclick="closeModal('modal-api-key')">x</button>
+        </div>
+        <div class="modal-body">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">
+            Ta cle est stockee uniquement sur ton iPhone.<br><br>
+            Pour en creer une : <strong>platform.anthropic.com</strong> puis API Keys puis Create Key
+          </div>
+          <div class="form-group">
+            <label>Cle API</label>
+            <input id="api-key-input" class="input" type="password" placeholder="sk-ant-api03-..." autocomplete="off" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary full-width" onclick="saveApiKeyFromModal()">Enregistrer</button>
+        </div>
+      </div>
+    </div>
     <!-- TOAST -->
     <div id="toast" class="toast"></div>
   </div>

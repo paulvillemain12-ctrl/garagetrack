@@ -338,6 +338,25 @@
         </div>
       </div>
     </div>
+    <div id="modal-multi-product" class="modal-overlay" onclick="closeModalOutside(event,'modal-multi-product')">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 id="multi-product-count">0</h3>
+          <button class="btn-icon" onclick="closeModal('modal-multi-product')">x</button>
+        </div>
+        <div class="modal-body">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Verifie et modifie chaque ligne avant de confirmer.</div>
+          <div id="multi-product-list"></div>
+        </div>
+        <div class="modal-footer">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-size:13px;color:var(--text3)">Total</span>
+            <span style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:600;color:var(--accent)" id="multi-product-total">0 EUR</span>
+          </div>
+          <button class="btn-primary full-width" onclick="confirmMultiProducts()">Ajouter toutes les depenses</button>
+        </div>
+      </div>
+    </div>
     <!-- TOAST -->
     <div id="toast" class="toast"></div>
   </div>

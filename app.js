@@ -87,101 +87,89 @@ function saveApiKeyFromModal() {
   toast('Clé API enregistrée ✓');
 }
 
+
 // ─── RECONNAISSANCE FACTURE ──────────────────────────────────────────────────
 async function analyserFacture() {
   const apiKey = getApiKey();
-  if (!apiKey) {
-    toast('Configure ta clé API d\'abord');
-    openApiKeyModal();
-    return;
-  }
-
+  if (!apiKey) { toast('Configure ta cle API'); openApiKeyModal(); return; }
   const input = document.getElementById('dep-photo-input');
-  if (!input.files[0]) {
-    toast('Prends d\'abord une photo de la facture');
-    return;
-  }
-
+  if (!input.files[0]) { toast('Prends une photo de la facture'); return; }
   const btn = document.getElementById('btn-analyser');
-  btn.textContent = 'Analyse en cours...';
-  btn.disabled = true;
-
+  btn.textContent = 'Analyse en cours...'; btn.disabled = true;
   try {
     const photoData = await getPhotoData('dep-photo-input');
     const base64 = photoData.split(',')[1];
     const mediaType = input.files[0].type || 'image/jpeg';
-
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: mediaType, data: base64 }
-            },
-            {
-              type: 'text',
-              text: `Tu es un assistant qui analyse des factures de pièces automobiles.
-Réponds UNIQUEMENT en JSON valide, sans markdown, sans explication :
-{
-  "description": "nom court de la pièce ou du service (max 40 caractères)",
-  "montant": 12.50,
-  "fournisseur": "nom du magasin ou site web si visible, sinon null",
-  "categorie": "une valeur parmi: Pièces mécaniques, Carrosserie, Électrique, Fluides / consommables, Outillage, Autre"
-}
-Si tu ne vois pas de facture ou pas de montant, réponds: {"erreur": "Facture non lisible"}`
-            }
-          ]
-        }]
+      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 800,
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: 'Analyse cette facture auto. JSON uniquement sans markdown: {"fournisseur":"nom ou null","produits":[{"description":"nom piece 40 chars max","montant":12.50,"categorie":"Pieces mecaniques|Carrosserie|Electrique|Fluides consommables|Outillage|Autre"}]}. Une entree par ligne produit. Si illisible: {"erreur":"non lisible"}' }
+        ]}]
       })
     });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error?.message || 'Erreur API');
-    }
-
+    if (!response.ok) { const e = await response.json(); throw new Error(e.error?.message || 'Erreur API'); }
     const data = await response.json();
-    const text = data.content[0].text.trim();
-    const result = JSON.parse(text);
-
-    if (result.erreur) {
-      toast(result.erreur);
-      return;
+    const result = JSON.parse(data.content[0].text.trim());
+    if (result.erreur) { toast(result.erreur); return; }
+    const produits = result.produits || [];
+    if (!produits.length) { toast('Aucun produit detecte'); return; }
+    if (produits.length === 1) {
+      const p = produits[0];
+      if (p.description) document.getElementById('dep-desc').value = p.description;
+      if (p.montant) document.getElementById('dep-montant').value = p.montant;
+      if (result.fournisseur) document.getElementById('dep-fourn').value = result.fournisseur;
+      toast('1 produit detecte - verifie les infos');
+    } else {
+      openMultiProductModal(produits, result.fournisseur);
     }
-
-    // Remplir les champs automatiquement
-    if (result.description) document.getElementById('dep-desc').value = result.description;
-    if (result.montant) document.getElementById('dep-montant').value = result.montant;
-    if (result.fournisseur) document.getElementById('dep-fourn').value = result.fournisseur;
-    if (result.categorie) {
-      const sel = document.getElementById('dep-cat');
-      for (let opt of sel.options) {
-        if (opt.value === result.categorie) { sel.value = result.categorie; break; }
-      }
-    }
-
-    toast('Facture analysée ✓ Vérifie les infos');
-
   } catch (e) {
-    console.error(e);
-    if (e.message.includes('401')) toast('Clé API incorrecte');
-    else if (e.message.includes('429')) toast('Limite atteinte, réessaie dans quelques secondes');
-    else toast('Erreur : ' + e.message.slice(0, 50));
-  } finally {
-    btn.textContent = 'Analyser avec l\'IA';
-    btn.disabled = false;
-  }
+    if (e.message.includes('401')) toast('Cle API incorrecte');
+    else if (e.message.includes('429')) toast('Limite atteinte');
+    else toast('Erreur: ' + e.message.slice(0, 50));
+  } finally { btn.textContent = "Analyser avec l'IA"; btn.disabled = false; }
+}
+
+let pendingMultiProducts = [], pendingFournisseur = '';
+
+function openMultiProductModal(produits, fournisseur) {
+  pendingMultiProducts = produits; pendingFournisseur = fournisseur || '';
+  const total = produits.reduce((a, p) => a + (p.montant || 0), 0);
+  const cats = ['Pieces mecaniques','Carrosserie','Electrique','Fluides consommables','Outillage','Autre'];
+  document.getElementById('multi-product-list').innerHTML = produits.map((p, i) =>
+    '<div style="padding:10px 0;border-bottom:0.5px solid var(--border)">' +
+    '<input class="input" id="mp-desc-' + i + '" value="' + p.description + '" style="margin-bottom:6px;font-size:13px" />' +
+    '<div style="display:flex;gap:8px">' +
+    '<input class="input" id="mp-montant-' + i + '" type="number" value="' + p.montant + '" style="width:90px;font-size:13px" />' +
+    '<select class="input" id="mp-cat-' + i + '" style="flex:1;font-size:12px">' + cats.map(c => '<option' + (c===p.categorie?' selected':'') + '>' + c + '</option>').join('') + '</select>' +
+    '<button class="dep-delete" onclick="pendingMultiProducts.splice(' + i + ',1);openMultiProductModal(pendingMultiProducts,pendingFournisseur)">x</button>' +
+    '</div></div>').join('');
+  document.getElementById('multi-product-total').textContent = total.toFixed(2) + ' EUR';
+  document.getElementById('multi-product-count').textContent = produits.length;
+  openModal('modal-multi-product');
+}
+
+async function confirmMultiProducts() {
+  const pid = document.getElementById('dep-projet').value;
+  if (!pid) { toast('Selectionne un projet'); return; }
+  const photoData = await getPhotoData('dep-photo-input');
+  const dateVal = document.getElementById('dep-date').value || today();
+  pendingMultiProducts.forEach((p, i) => {
+    const desc = document.getElementById('mp-desc-' + i)?.value || p.description;
+    const montant = parseFloat(document.getElementById('mp-montant-' + i)?.value) || p.montant;
+    const cat = document.getElementById('mp-cat-' + i)?.value || p.categorie;
+    if (montant > 0) db.depenses.push({ id: uid(), projetId: pid, photo: i === 0 ? photoData : null, desc, fourn: pendingFournisseur, montant, cat, date: dateVal });
+  });
+  save(db);
+  closeModal('modal-multi-product'); closeModal('modal-new-dep');
+  ['dep-desc','dep-fourn','dep-montant'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('dep-photo-preview').style.display = 'none';
+  document.getElementById('dep-photo-placeholder').style.display = 'flex';
+  document.getElementById('dep-photo-input').value = '';
+  renderDepenses();
+  toast(pendingMultiProducts.length + ' depenses ajoutees');
 }
 
 // ─── SELECT HELPERS ──────────────────────────────────────────────────────────

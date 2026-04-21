@@ -103,10 +103,12 @@ async function analyserFacture() {
     const response = await fetch('https://restless-star-0f7c.paulvillemain12.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 800,
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 800,
+        system: 'Tu es un extracteur de donnees de factures. Tu reponds TOUJOURS et UNIQUEMENT avec du JSON valide, sans aucun texte avant ou apres, sans markdown, sans backticks.',
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
-          { type: 'text', text: 'Analyse cette facture auto. JSON uniquement sans markdown: {"fournisseur":"nom ou null","produits":[{"description":"nom piece 40 chars max","montant":12.50,"categorie":"Pieces mecaniques|Carrosserie|Electrique|Fluides consommables|Outillage|Autre"}]}. Une entree par ligne produit. Si illisible: {"erreur":"non lisible"}' }
+          { type: 'text', text: 'Extrais les produits de cette facture. Format strict: {"fournisseur":"nom ou null","produits":[{"description":"nom piece max 40 chars","montant":12.50,"categorie":"Pieces mecaniques|Carrosserie|Electrique|Fluides consommables|Outillage|Autre"}]}. Si pas de facture lisible: {"erreur":"non lisible"}' }
         ]}]
       })
     });

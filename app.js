@@ -1024,6 +1024,62 @@ function openBackupModal() {
 }
 
 
+
+async function forceMigrateToSupabase() {
+  if (!supabaseReady) { toast('Connecte Supabase d abord'); return; }
+  const local = loadLocal();
+  if (!local.projets?.length) { toast('Aucune donnee locale a migrer'); return; }
+  if (!confirm('Envoyer ' + local.projets.length + ' projet(s) vers Supabase ?')) return;
+  toast('Migration en cours...');
+  let ok = 0;
+  for (const p of local.projets) {
+    const res = await sbFetch('projets', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+      id: p.id, nom: p.nom, immat: p.immat||'', annee: p.annee||'',
+      achat: p.achat||0, budget: p.budget||0, revente: p.revente||0,
+      notes: p.notes||'', photo: p.photo||null, created_at: new Date(p.createdAt||Date.now()).toISOString()
+    })});
+    ok++;
+  }
+  for (const d of (local.depenses||[])) {
+    await sbFetch('depenses', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+      id: d.id, projet_id: d.projetId, description: d.desc||'',
+      fourn: d.fourn||'', montant: d.montant||0, cat: d.cat||'Autre',
+      date_achat: d.date||today(), photo: d.photo||null
+    })});
+  }
+  for (const s of (local.sessions||[])) {
+    await sbFetch('sessions', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+      id: s.id, projet_id: s.projetId, description: s.desc||'',
+      duree: s.duree||0, date_session: s.date||today(), tasks: JSON.stringify(s.tasks||[])
+    })});
+  }
+  await loadFromSupabase();
+  renderProjets();
+  toast(ok + ' projets migrés vers Supabase !');
+}
+
+// ─── STATUS SUPABASE ─────────────────────────────────────────────────────────
+function updateStatus() {
+  const el = document.getElementById('supabase-status');
+  if (!el) return;
+  if (supabaseReady) {
+    el.style.display = 'block';
+    el.style.background = '#0f2a0f';
+    el.style.color = '#39d353';
+    el.textContent = '● SUPABASE CONNECTÉ';
+  } else if (getSupabaseUrl()) {
+    el.style.display = 'block';
+    el.style.background = '#2a1a0a';
+    el.style.color = '#f0883e';
+    el.textContent = '● HORS LIGNE — DONNÉES LOCALES';
+  } else {
+    el.style.display = 'block';
+    el.style.background = '#1a1a1a';
+    el.style.color = '#555';
+    el.textContent = '● SUPABASE NON CONFIGURÉ';
+  }
+}
+
 // ─── SUPABASE SETUP ──────────────────────────────────────────────────────────
 function openSupabaseSetup() { openModal('modal-supabase-setup'); }
 
@@ -1038,10 +1094,13 @@ async function saveSupabaseConfig() {
   const ok = await loadFromSupabase();
   if (ok) {
     supabaseReady = true;
-    await migrateLocalData();
-    await loadFromSupabase();
+    updateStatus();
     renderProjets();
     toast('Supabase connecté ✓');
+    const local = loadLocal();
+    if (local.projets?.length && db.projets.length === 0) {
+      setTimeout(() => forceMigrateToSupabase(), 500);
+    }
   } else {
     toast('Erreur de connexion — vérifie les clés');
   }
@@ -1069,6 +1128,7 @@ async function initApp() {
     db = loadLocal();
     setTimeout(() => openModal('modal-supabase-setup'), 1500);
   }
+  updateStatus();
   renderProjets();
   checkBackupReminder();
   if (!getApiKey()) {

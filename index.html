@@ -63,6 +63,7 @@
       <div id="page-projets" class="page active">
         <div class="page-header">
           <h2 class="page-title">MES PROJETS</h2>
+          <button class="btn-icon" onclick="openSupabaseSetup()" style="margin-right:8px" title="Supabase"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></button>
           <button class="btn-icon" onclick="openBackupModal()" style="margin-right:8px" title="Sauvegarde"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
           <button class="btn-icon" onclick="openModal('modal-new-projet')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -408,6 +409,31 @@
         </div>
         <div class="modal-footer">
           <button class="btn-primary full-width" onclick="saveEditProjet()">Enregistrer les modifications</button>
+        </div>
+      </div>
+    </div>
+    <div id="modal-supabase-setup" class="modal-overlay" onclick="closeModalOutside(event,'modal-supabase-setup')">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Connexion Supabase</h3>
+          <button class="btn-icon" onclick="closeModal('modal-supabase-setup')">x</button>
+        </div>
+        <div class="modal-body">
+          <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+            Connecte ton app a Supabase pour ne plus jamais perdre tes donnees.<br><br>
+            Sur <strong>supabase.com</strong> → ton projet → <strong>Settings → API</strong> → copie l'URL et la cle <strong>anon public</strong>.
+          </div>
+          <div class="form-group">
+            <label>Project URL</label>
+            <input id="sb-url-input" class="input" placeholder="https://xxxx.supabase.co" autocomplete="off" />
+          </div>
+          <div class="form-group">
+            <label>Anon public key</label>
+            <input id="sb-key-input" class="input" type="password" placeholder="eyJhbGci..." autocomplete="off" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary full-width" onclick="saveSupabaseConfig()">Connecter</button>
         </div>
       </div>
     </div>

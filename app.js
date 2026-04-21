@@ -635,6 +635,16 @@ function renderBilan() {
   const months = Object.keys(byMonth).sort();
   const hasMonths = months.length > 1;
 
+  // Liste des pièces changées
+  const piecesHtml = deps.sort((a,b) => a.date.localeCompare(b.date)).map(d => `
+    <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:500;color:var(--text)">${d.desc}</div>
+        <div style="font-size:11px;color:var(--text3)">${[d.fourn, fmtDate(d.date)].filter(Boolean).join(' · ')}</div>
+      </div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:600;color:var(--text);white-space:nowrap">${fmtInt(d.montant)}</div>
+    </div>`).join('');
+
   el.innerHTML = `
     <div class="bilan-main">
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:12px;letter-spacing:2px;color:var(--text3);margin-bottom:8px">MARGE ESTIMÉE</div>
@@ -651,7 +661,11 @@ function renderBilan() {
       </div>
     </div>
     ${catEntries.length ? `<div class="bilan-section"><div class="bilan-title">Répartition dépenses</div>${catHtml}</div>` : ''}
+    ${deps.length ? `<div class="bilan-section"><div class="bilan-title">Pièces changées (${deps.length})</div>${piecesHtml}</div>` : ''}
     ${hasMonths ? `<div class="bilan-section"><div class="bilan-title">Évolution mensuelle</div><canvas id="bilan-chart" height="120"></canvas></div>` : ''}
+    <div style="padding:0 16px 16px">
+      <button class="btn-primary full-width" onclick="genererPDF('${pid}')">Générer le rapport PDF</button>
+    </div>
   `;
 
   if (hasMonths) {
@@ -672,6 +686,126 @@ function renderBilan() {
       }
     });
   }
+}
+
+
+// ─── GENERATION PDF ──────────────────────────────────────────────────────────
+function genererPDF(pid) {
+  const proj = db.projets.find(p => p.id === pid);
+  if (!proj) return;
+  const deps = db.depenses.filter(d => d.projetId === pid);
+  const sessions = db.sessions.filter(s => s.projetId === pid);
+  const totalDeps = deps.reduce((a, d) => a + d.montant, 0);
+  const totalHrs = sessions.reduce((a, s) => a + s.duree, 0);
+  const achat = proj.achat || 0;
+  const coutTotal = totalDeps + achat;
+  const marge = (proj.revente || 0) - coutTotal;
+  const taux = totalHrs > 0 ? marge / totalHrs : 0;
+
+  // Grouper par catégorie
+  const cats = {};
+  deps.forEach(d => { cats[d.cat] = (cats[d.cat] || 0) + d.montant; });
+
+  const dateStr = new Date().toLocaleDateString('fr-FR');
+  const depRows = deps.sort((a,b) => a.date.localeCompare(b.date)).map(d =>
+    `<tr><td>${fmtDate(d.date)}</td><td>${d.desc}</td><td>${d.fourn||'—'}</td><td>${d.cat}</td><td style="text-align:right;font-weight:600">${fmt(d.montant)}</td></tr>`
+  ).join('');
+
+  const catRows = Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
+    `<tr><td>${k}</td><td style="text-align:right;font-weight:600">${fmt(v)}</td><td style="text-align:right;color:#666">${totalDeps>0?Math.round(v/totalDeps*100):0}%</td></tr>`
+  ).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<title>Rapport — ${proj.nom}</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #1a1a1a; background: white; padding: 32px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; padding-bottom: 20px; border-bottom: 3px solid #E8FF3D; }
+  .header-left h1 { font-size: 28px; font-weight: 900; letter-spacing: 2px; color: #0a0a0a; }
+  .header-left p { font-size: 13px; color: #666; margin-top: 4px; }
+  .badge { background: #E8FF3D; color: #0a0a0a; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 4px; display: inline-block; margin-top: 6px; }
+  .section { margin-bottom: 28px; }
+  .section-title { font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #888; text-transform: uppercase; margin-bottom: 12px; }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+  .metric { background: #f5f5f5; border-radius: 8px; padding: 12px; }
+  .metric-lbl { font-size: 10px; color: #888; margin-bottom: 4px; }
+  .metric-val { font-size: 20px; font-weight: 700; }
+  .marge { font-size: 36px; font-weight: 900; color: ${marge >= 0 ? '#27ae60' : '#e74c3c'}; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: #f0f0f0; padding: 8px 10px; text-align: left; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: #666; }
+  td { padding: 8px 10px; border-bottom: 1px solid #f0f0f0; }
+  tr:last-child td { border-bottom: none; }
+  .total-row td { font-weight: 700; background: #f9f9f9; border-top: 2px solid #ddd; }
+  .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #ddd; font-size: 11px; color: #aaa; text-align: center; }
+  .marge-box { background: ${marge >= 0 ? '#f0fdf4' : '#fef2f2'}; border: 2px solid ${marge >= 0 ? '#27ae60' : '#e74c3c'}; border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  @media print { body { padding: 20px; } }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <div style="font-size:11px;font-weight:700;letter-spacing:3px;color:#888;margin-bottom:6px">GARAGETRACK</div>
+      <h1>${proj.nom.toUpperCase()}</h1>
+      <p>${[proj.immat, proj.annee].filter(Boolean).join(' · ') || ''}</p>
+      <span class="badge">Rapport du ${dateStr}</span>
+    </div>
+    <div style="text-align:right">
+      <div class="marge-box" style="text-align:center;padding:16px 24px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#888;margin-bottom:6px">MARGE ESTIMÉE</div>
+        <div class="marge">${marge >= 0 ? '+' : ''}${fmtInt(marge)}</div>
+        <div style="font-size:12px;color:#666;margin-top:4px">${taux >= 0 ? '+' : ''}${taux.toFixed(1)} €/h · ${totalHrs.toFixed(1)} h</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Résumé financier</div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-lbl">Prix d'achat</div><div class="metric-val">${fmtInt(achat)}</div></div>
+      <div class="metric"><div class="metric-lbl">Pièces / travaux</div><div class="metric-val">${fmtInt(totalDeps)}</div></div>
+      <div class="metric"><div class="metric-lbl">Coût total investi</div><div class="metric-val">${fmtInt(coutTotal)}</div></div>
+      <div class="metric"><div class="metric-lbl">Prix de revente visé</div><div class="metric-val">${fmtInt(proj.revente||0)}</div></div>
+    </div>
+  </div>
+
+  ${catRows ? `<div class="section">
+    <div class="section-title">Répartition par catégorie</div>
+    <table>
+      <tr><th>Catégorie</th><th style="text-align:right">Montant</th><th style="text-align:right">Part</th></tr>
+      ${catRows}
+      <tr class="total-row"><td>Total pièces</td><td style="text-align:right">${fmt(totalDeps)}</td><td></td></tr>
+    </table>
+  </div>` : ''}
+
+  ${depRows ? `<div class="section">
+    <div class="section-title">Détail des pièces changées (${deps.length})</div>
+    <table>
+      <tr><th>Date</th><th>Description</th><th>Fournisseur</th><th>Catégorie</th><th style="text-align:right">Montant</th></tr>
+      ${depRows}
+      <tr class="total-row"><td colspan="4">Total</td><td style="text-align:right">${fmt(totalDeps)}</td></tr>
+    </table>
+  </div>` : ''}
+
+  ${proj.notes ? `<div class="section">
+    <div class="section-title">Notes</div>
+    <p style="font-size:13px;color:#444;line-height:1.6;background:#f9f9f9;padding:12px;border-radius:6px">${proj.notes}</p>
+  </div>` : ''}
+
+  <div class="footer">Généré par GarageTrack · ${dateStr}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `rapport-${proj.nom.toLowerCase().replace(/\s+/g,'-')}-${today()}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Rapport généré ✓ Ouvre-le dans Safari pour imprimer en PDF');
 }
 
 // ─── BACKUP / RESTORE ────────────────────────────────────────────────────────

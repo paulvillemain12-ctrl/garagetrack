@@ -357,6 +357,60 @@
         </div>
       </div>
     </div>
+    <div id="modal-edit-projet" class="modal-overlay" onclick="closeModalOutside(event,'modal-edit-projet')">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Modifier le projet</h3>
+          <button class="btn-icon" onclick="closeModal('modal-edit-projet')">x</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="edit-proj-id" />
+          <div class="photo-upload-zone" id="edit-proj-photo-zone" onclick="document.getElementById('edit-proj-photo-input').click()">
+            <img id="edit-proj-photo-preview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px"/>
+            <div id="edit-proj-photo-placeholder">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span>Changer la photo</span>
+            </div>
+          </div>
+          <input type="file" id="edit-proj-photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this,'edit-proj-photo-preview','edit-proj-photo-placeholder')"/>
+          <div class="form-group">
+            <label>Nom / modèle *</label>
+            <input id="edit-np-nom" class="input" placeholder="Ex: Golf GTI mk5" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Immatriculation</label>
+              <input id="edit-np-immat" class="input" placeholder="AB-123-CD" />
+            </div>
+            <div class="form-group">
+              <label>Année</label>
+              <input id="edit-np-annee" class="input" type="number" placeholder="2005" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Prix d'achat (€)</label>
+              <input id="edit-np-achat" class="input" type="number" placeholder="1200" />
+            </div>
+            <div class="form-group">
+              <label>Budget pièces (€)</label>
+              <input id="edit-np-budget" class="input" type="number" placeholder="2000" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Prix de revente visé (€)</label>
+            <input id="edit-np-revente" class="input" type="number" placeholder="3500" />
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea id="edit-np-notes" class="input textarea" placeholder="Travaux prévus, état général..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-primary full-width" onclick="saveEditProjet()">Enregistrer les modifications</button>
+        </div>
+      </div>
+    </div>
     <!-- TOAST -->
     <div id="toast" class="toast"></div>
   </div>

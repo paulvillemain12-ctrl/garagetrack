@@ -100,9 +100,9 @@ async function analyserFacture() {
     const photoData = await getPhotoData('dep-photo-input');
     const base64 = photoData.split(',')[1];
     const mediaType = input.files[0].type || 'image/jpeg';
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://restless-star-0f7c.paulvillemain12.workers.dev', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      headers: { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 800,
         messages: [{ role: 'user', content: [
           { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },

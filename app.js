@@ -112,7 +112,10 @@ async function analyserFacture() {
     });
     if (!response.ok) { const e = await response.json(); throw new Error(e.error?.message || 'Erreur API'); }
     const data = await response.json();
-    const result = JSON.parse(data.content[0].text.trim());
+    const rawText = data.content[0].text.trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) { toast('Réponse illisible'); return; }
+    const result = JSON.parse(jsonMatch[0]);
     if (result.erreur) { toast(result.erreur); return; }
     const produits = result.produits || [];
     if (!produits.length) { toast('Aucun produit detecte'); return; }

@@ -63,12 +63,27 @@ function previewPhoto(input, previewId, placeholderId) {
   reader.readAsDataURL(file);
 }
 
-function getPhotoData(inputId) {
+function getPhotoData(inputId, maxSize) {
   return new Promise(resolve => {
     const input = document.getElementById(inputId);
     if (!input.files[0]) { resolve(null); return; }
     const reader = new FileReader();
-    reader.onload = e => resolve(e.target.result);
+    reader.onload = e => {
+      if (!maxSize) { resolve(e.target.result); return; }
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxSize || h > maxSize) {
+          if (w > h) { h = Math.round(h * maxSize / w); w = maxSize; }
+          else { w = Math.round(w * maxSize / h); h = maxSize; }
+        }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.src = e.target.result;
+    };
     reader.readAsDataURL(input.files[0]);
   });
 }
@@ -97,7 +112,7 @@ async function analyserFacture() {
   const btn = document.getElementById('btn-analyser');
   btn.textContent = 'Analyse en cours...'; btn.disabled = true;
   try {
-    const photoData = await getPhotoData('dep-photo-input');
+    const photoData = await getPhotoData('dep-photo-input', 1200);
     const base64 = photoData.split(',')[1];
     const mediaType = input.files[0].type || 'image/jpeg';
     const response = await fetch('https://restless-star-0f7c.paulvillemain12.workers.dev', {

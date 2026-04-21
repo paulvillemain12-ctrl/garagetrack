@@ -4,5 +4,6 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 self.addEventListener('fetch', e => {
+  if (e.request.url.includes('workers.dev')) return;
   e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });

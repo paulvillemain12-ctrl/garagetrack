@@ -307,10 +307,12 @@ function openProjetDetail(id) {
     ${p.notes ? `<div style="font-size:14px;color:var(--text2);background:var(--bg3);border-radius:10px;padding:12px">${p.notes}</div>` : ''}
   `;
   document.getElementById('detail-footer').innerHTML = `
-    <div style="display:flex;gap:8px">
-      <button class="btn-secondary" style="flex:1" onclick="deleteProjet('${id}')">Supprimer</button>
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <button class="btn-secondary" style="flex:1" onclick="openEditProjet('${id}')">Modifier</button>
       <button class="btn-primary" style="flex:2" onclick="closeModal('modal-detail-projet');navigate('depenses');setTimeout(()=>{document.getElementById('dep-projet').value='${id}';renderDepenses()},100)">Voir les dépenses</button>
-    </div>`;
+    </div>
+    <button class="btn-secondary full-width" style="color:#A32D2D;border-color:#F09595" onclick="deleteProjet('${id}')">Supprimer le projet</button>
+  `;
   openModal('modal-detail-projet');
 }
 
@@ -336,6 +338,49 @@ async function addProjet() {
   closeModal('modal-new-projet');
   renderProjets();
   toast('Projet créé ✓');
+}
+
+function openEditProjet(id) {
+  const p = db.projets.find(x => x.id === id);
+  if (!p) return;
+  closeModal('modal-detail-projet');
+  document.getElementById('edit-proj-id').value = id;
+  document.getElementById('edit-np-nom').value = p.nom || '';
+  document.getElementById('edit-np-immat').value = p.immat || '';
+  document.getElementById('edit-np-annee').value = p.annee || '';
+  document.getElementById('edit-np-achat').value = p.achat || '';
+  document.getElementById('edit-np-budget').value = p.budget || '';
+  document.getElementById('edit-np-revente').value = p.revente || '';
+  document.getElementById('edit-np-notes').value = p.notes || '';
+  const preview = document.getElementById('edit-proj-photo-preview');
+  const placeholder = document.getElementById('edit-proj-photo-placeholder');
+  if (p.photo) {
+    preview.src = p.photo; preview.style.display = 'block'; placeholder.style.display = 'none';
+  } else {
+    preview.style.display = 'none'; placeholder.style.display = 'flex';
+  }
+  openModal('modal-edit-projet');
+}
+
+async function saveEditProjet() {
+  const id = document.getElementById('edit-proj-id').value;
+  const p = db.projets.find(x => x.id === id);
+  if (!p) return;
+  const nom = document.getElementById('edit-np-nom').value.trim();
+  if (!nom) { toast('Donne un nom au projet !'); return; }
+  const newPhoto = await getPhotoData('edit-proj-photo-input');
+  p.nom = nom;
+  p.immat = document.getElementById('edit-np-immat').value.trim();
+  p.annee = document.getElementById('edit-np-annee').value.trim();
+  p.achat = parseFloat(document.getElementById('edit-np-achat').value) || 0;
+  p.budget = parseFloat(document.getElementById('edit-np-budget').value) || 0;
+  p.revente = parseFloat(document.getElementById('edit-np-revente').value) || 0;
+  p.notes = document.getElementById('edit-np-notes').value.trim();
+  if (newPhoto) p.photo = newPhoto;
+  save(db);
+  closeModal('modal-edit-projet');
+  renderProjets();
+  toast('Projet mis à jour ✓');
 }
 
 function deleteProjet(id) {

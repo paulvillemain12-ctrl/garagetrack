@@ -1,19 +1,118 @@
 'use strict';
 
-// ─── STORE ───────────────────────────────────────────────────────────────────
-const STORE_KEY = 'garagetrack_v1';
+// ─── CONFIG SUPABASE ─────────────────────────────────────────────────────────
+const SUPABASE_URL_KEY = 'gt_sb_url';
+const SUPABASE_KEY_KEY = 'gt_sb_key';
 const API_KEY_STORE = 'garagetrack_apikey';
+const LOCAL_CACHE = 'garagetrack_cache_v1';
 
-function load() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || { projets: [], depenses: [], sessions: [] }; }
-  catch { return { projets: [], depenses: [], sessions: [] }; }
-}
-function save(d) { try { localStorage.setItem(STORE_KEY, JSON.stringify(d)); } catch(e) { toast('Erreur de sauvegarde'); } }
-
+function getSupabaseUrl() { return localStorage.getItem(SUPABASE_URL_KEY) || ''; }
+function getSupabaseKey() { return localStorage.getItem(SUPABASE_KEY_KEY) || ''; }
 function getApiKey() { return localStorage.getItem(API_KEY_STORE) || ''; }
 function saveApiKey(k) { localStorage.setItem(API_KEY_STORE, k); }
 
-let db = load();
+let db = { projets: [], depenses: [], sessions: [] };
+let supabaseReady = false;
+
+// ─── SUPABASE HELPERS ────────────────────────────────────────────────────────
+async function sbFetch(path, options = {}) {
+  const url = getSupabaseUrl();
+  const key = getSupabaseKey();
+  if (!url || !key) return null;
+  const res = await fetch(url + '/rest/v1/' + path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': key,
+      'Authorization': 'Bearer ' + key,
+      'Prefer': options.prefer || 'return=representation',
+      ...(options.headers || {})
+    }
+  });
+  if (!res.ok) { console.error('Supabase error:', await res.text()); return null; }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+// ─── LOAD / SAVE ─────────────────────────────────────────────────────────────
+function loadLocal() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_CACHE)) || { projets: [], depenses: [], sessions: [] }; }
+  catch { return { projets: [], depenses: [], sessions: [] }; }
+}
+
+function saveLocal(d) {
+  try { localStorage.setItem(LOCAL_CACHE, JSON.stringify(d)); } catch(e) {}
+}
+
+async function loadFromSupabase() {
+  try {
+    const [projets, depenses, sessions] = await Promise.all([
+      sbFetch('projets?order=created_at.asc'),
+      sbFetch('depenses?order=created_at.asc'),
+      sbFetch('sessions?order=created_at.asc')
+    ]);
+    if (projets === null) return false;
+    db.projets = (projets || []).map(p => ({...p}));
+    db.depenses = (depenses || []).map(d => ({
+      ...d, projetId: d.projet_id, desc: d.description, date: d.date_achat
+    }));
+    db.sessions = (sessions || []).map(s => ({
+      ...s, projetId: s.projet_id, desc: s.description, date: s.date_session,
+      tasks: typeof s.tasks === 'string' ? JSON.parse(s.tasks||'[]') : (s.tasks||[])
+    }));
+    saveLocal(db);
+    return true;
+  } catch(e) { console.error('Load error:', e); return false; }
+}
+
+async function save(d) {
+  saveLocal(d);
+}
+
+async function sbInsert(table, row) {
+  const clean = {...row};
+  delete clean.id;
+  const res = await sbFetch(table, { method: 'POST', body: JSON.stringify(clean), prefer: 'return=representation' });
+  return res?.[0] || null;
+}
+
+async function sbUpdate(table, id, data) {
+  const clean = {...data};
+  delete clean.id;
+  await sbFetch(table + '?id=eq.' + id, { method: 'PATCH', body: JSON.stringify(clean), prefer: 'return=minimal' });
+}
+
+async function sbDelete(table, id) {
+  await sbFetch(table + '?id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
+}
+
+// ─── MIGRATION LOCAL → SUPABASE ──────────────────────────────────────────────
+async function migrateLocalData() {
+  const old = JSON.parse(localStorage.getItem('garagetrack_v1') || '{}');
+  if (!old.projets?.length) return;
+  toast('Migration des données en cours...');
+  for (const p of old.projets) {
+    await sbFetch('projets', { method: 'POST', body: JSON.stringify({
+      id: p.id, nom: p.nom, immat: p.immat, annee: p.annee,
+      achat: p.achat, budget: p.budget, revente: p.revente,
+      notes: p.notes, photo: p.photo, created_at: new Date(p.createdAt||Date.now()).toISOString()
+    }), prefer: 'return=minimal' });
+  }
+  for (const d of (old.depenses||[])) {
+    await sbFetch('depenses', { method: 'POST', body: JSON.stringify({
+      id: d.id, projet_id: d.projetId, description: d.desc, fourn: d.fourn,
+      montant: d.montant, cat: d.cat, date_achat: d.date, photo: d.photo
+    }), prefer: 'return=minimal' });
+  }
+  for (const s of (old.sessions||[])) {
+    await sbFetch('sessions', { method: 'POST', body: JSON.stringify({
+      id: s.id, projet_id: s.projetId, description: s.desc, duree: s.duree,
+      date_session: s.date, tasks: JSON.stringify(s.tasks||[])
+    }), prefer: 'return=minimal' });
+  }
+  localStorage.removeItem('garagetrack_v1');
+  toast('Migration terminée ✓');
+}
 
 // ─── UTILS ───────────────────────────────────────────────────────────────────
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -237,6 +336,12 @@ async function confirmMultiProducts() {
     if (montant > 0) db.depenses.push({ id: uid(), projetId: pid, photo: i === 0 ? photoData : null, desc, fourn: pendingFournisseur, montant, cat, date: dateVal });
   });
   save(db);
+  if (supabaseReady) {
+    pendingMultiProducts.forEach((p, i) => {
+      const d = db.depenses[db.depenses.length - pendingMultiProducts.length + i];
+      if (d) sbFetch('depenses', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ id: d.id, projet_id: d.projetId, description: d.desc, fourn: d.fourn, montant: d.montant, cat: d.cat, date_achat: d.date, photo: d.photo })});
+    });
+  }
   closeModal('modal-multi-product'); closeModal('modal-new-dep');
   ['dep-desc','dep-fourn','dep-montant'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('dep-photo-preview').style.display = 'none';
@@ -320,7 +425,7 @@ async function addProjet() {
   const nom = document.getElementById('np-nom').value.trim();
   if (!nom) { toast('Donne un nom au projet !'); return; }
   const photo = await getPhotoData('proj-photo-input');
-  db.projets.push({
+  const newProjet = {
     id: uid(), nom, photo,
     immat: document.getElementById('np-immat').value.trim(),
     annee: document.getElementById('np-annee').value.trim(),
@@ -329,8 +434,17 @@ async function addProjet() {
     revente: parseFloat(document.getElementById('np-revente').value) || 0,
     notes: document.getElementById('np-notes').value.trim(),
     createdAt: Date.now()
-  });
+  };
+  db.projets.push(newProjet);
   save(db);
+  if (supabaseReady) {
+    sbFetch('projets', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+      id: newProjet.id, nom: newProjet.nom, photo: newProjet.photo,
+      immat: newProjet.immat, annee: newProjet.annee, achat: newProjet.achat,
+      budget: newProjet.budget, revente: newProjet.revente, notes: newProjet.notes,
+      created_at: new Date().toISOString()
+    })});
+  }
   ['np-nom','np-immat','np-annee','np-achat','np-budget','np-revente','np-notes'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('proj-photo-preview').style.display = 'none';
   document.getElementById('proj-photo-placeholder').style.display = 'flex';
@@ -378,17 +492,25 @@ async function saveEditProjet() {
   p.notes = document.getElementById('edit-np-notes').value.trim();
   if (newPhoto) p.photo = newPhoto;
   save(db);
+  if (supabaseReady) {
+    sbUpdate('projets', id, { nom: p.nom, immat: p.immat, annee: p.annee, achat: p.achat, budget: p.budget, revente: p.revente, notes: p.notes, photo: p.photo });
+  }
   closeModal('modal-edit-projet');
   renderProjets();
   toast('Projet mis à jour ✓');
 }
 
-function deleteProjet(id) {
+async function deleteProjet(id) {
   if (!confirm('Supprimer ce projet et toutes ses données ?')) return;
   db.projets = db.projets.filter(p => p.id !== id);
   db.depenses = db.depenses.filter(d => d.projetId !== id);
   db.sessions = db.sessions.filter(s => s.projetId !== id);
   save(db);
+  if (supabaseReady) {
+    await sbDelete('projets', id);
+    await sbFetch('depenses?projet_id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
+    await sbFetch('sessions?projet_id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
+  }
   closeModal('modal-detail-projet');
   renderProjets();
   toast('Projet supprimé');
@@ -457,14 +579,22 @@ async function addDepense() {
   const montant = parseFloat(document.getElementById('dep-montant').value);
   if (!montant || montant <= 0) { toast('Montant invalide'); return; }
   const photo = await getPhotoData('dep-photo-input');
-  db.depenses.push({
+  const newDep = {
     id: uid(), projetId: pid, photo,
     desc: document.getElementById('dep-desc').value || 'Dépense',
     fourn: document.getElementById('dep-fourn').value,
     montant, cat: document.getElementById('dep-cat').value,
     date: document.getElementById('dep-date').value || today()
-  });
+  };
+  db.depenses.push(newDep);
   save(db);
+  if (supabaseReady) {
+    sbFetch('depenses', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+      id: newDep.id, projet_id: newDep.projetId, description: newDep.desc,
+      fourn: newDep.fourn, montant: newDep.montant, cat: newDep.cat,
+      date_achat: newDep.date, photo: newDep.photo
+    })});
+  }
   ['dep-desc','dep-fourn','dep-montant'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('dep-photo-preview').style.display = 'none';
   document.getElementById('dep-photo-placeholder').style.display = 'flex';
@@ -476,7 +606,9 @@ async function addDepense() {
 
 function deleteDep(id) {
   db.depenses = db.depenses.filter(d => d.id !== id);
-  save(db); renderDepenses();
+  save(db);
+  if (supabaseReady) sbDelete('depenses', id);
+  renderDepenses();
 }
 
 // ─── TIMER ───────────────────────────────────────────────────────────────────
@@ -522,8 +654,10 @@ function saveTimerSession() {
   const duree = parseFloat((timerElapsed / 3600000).toFixed(2));
   if (duree < 0.01) { toast('Durée trop courte'); return; }
   const desc = document.getElementById('tps-desc-timer').value || 'Session chrono';
-  db.sessions.push({ id: uid(), projetId: pid, desc, duree, tasks: [], date: today() });
+  const newSess = { id: uid(), projetId: pid, desc, duree, tasks: [], date: today() };
+  db.sessions.push(newSess);
   save(db);
+  if (supabaseReady) sbFetch('sessions', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ id: newSess.id, projet_id: newSess.projetId, description: newSess.desc, duree: newSess.duree, date_session: newSess.date, tasks: '[]' })});
   document.getElementById('tps-desc-timer').value = '';
   resetTimer();
   renderTemps();
@@ -557,13 +691,15 @@ function addSession() {
   if (!pid) { toast('Sélectionne un projet'); return; }
   const duree = parseFloat(document.getElementById('tps-duree').value);
   if (!duree || duree <= 0) { toast('Durée invalide'); return; }
-  db.sessions.push({
+  const manualSess = {
     id: uid(), projetId: pid,
     desc: document.getElementById('tps-desc').value || 'Session',
     duree, tasks: [...quickTasks],
     date: document.getElementById('tps-date').value || today()
-  });
+  };
+  db.sessions.push(manualSess);
   save(db);
+  if (supabaseReady) sbFetch('sessions', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({ id: manualSess.id, projet_id: manualSess.projetId, description: manualSess.desc, duree: manualSess.duree, date_session: manualSess.date, tasks: JSON.stringify(manualSess.tasks) })});
   ['tps-desc','tps-duree','tps-date'].forEach(id => document.getElementById(id).value = '');
   quickTasks = [];
   renderQuickTasks();
@@ -593,7 +729,9 @@ function renderTemps() {
 
 function deleteSess(id) {
   db.sessions = db.sessions.filter(s => s.id !== id);
-  save(db); renderTemps();
+  save(db);
+  if (supabaseReady) sbDelete('sessions', id);
+  renderTemps();
 }
 
 // ─── BILAN ───────────────────────────────────────────────────────────────────
@@ -882,18 +1020,60 @@ function openBackupModal() {
   openModal('modal-backup');
 }
 
+
+// ─── SUPABASE SETUP ──────────────────────────────────────────────────────────
+function openSupabaseSetup() { openModal('modal-supabase-setup'); }
+
+async function saveSupabaseConfig() {
+  const url = document.getElementById('sb-url-input').value.trim().replace(/\/$/, '');
+  const key = document.getElementById('sb-key-input').value.trim();
+  if (!url || !key) { toast('Remplis les deux champs'); return; }
+  localStorage.setItem(SUPABASE_URL_KEY, url);
+  localStorage.setItem(SUPABASE_KEY_KEY, key);
+  closeModal('modal-supabase-setup');
+  toast('Connexion en cours...');
+  const ok = await loadFromSupabase();
+  if (ok) {
+    supabaseReady = true;
+    await migrateLocalData();
+    await loadFromSupabase();
+    renderProjets();
+    toast('Supabase connecté ✓');
+  } else {
+    toast('Erreur de connexion — vérifie les clés');
+  }
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 document.getElementById('dep-date').value = today();
 document.getElementById('tps-date').value = today();
 
-setTimeout(() => {
+async function initApp() {
   document.getElementById('splash').classList.add('hidden');
+  const url = getSupabaseUrl();
+  const key = getSupabaseKey();
+  if (url && key) {
+    const ok = await loadFromSupabase();
+    if (ok) {
+      supabaseReady = true;
+      await migrateLocalData();
+      await loadFromSupabase();
+    } else {
+      db = loadLocal();
+      toast('Mode hors ligne — données locales');
+    }
+  } else {
+    db = loadLocal();
+    setTimeout(() => openModal('modal-supabase-setup'), 1500);
+  }
   renderProjets();
   checkBackupReminder();
   if (!getApiKey()) {
-    setTimeout(() => toast('Configure ta clé API dans Dépenses → ⚙'), 1500);
+    setTimeout(() => toast('Configure ta clé API dans Dépenses → ⚙'), 3000);
   }
-}, 1000);
+}
+
+setTimeout(initApp, 800);
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

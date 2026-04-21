@@ -979,18 +979,50 @@ function importBackup() {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = async ev => {
       try {
         const parsed = JSON.parse(ev.target.result);
-        if (!parsed.db || !parsed.db.projets) throw new Error('Fichier invalide');
-        if (!confirm(`Restaurer ${parsed.db.projets.length} projet(s) depuis le ${fmtDate(parsed.exportedAt?.slice(0,10))} ?\n\nTes données actuelles seront remplacées.`)) return;
-        db = parsed.db;
+        const data = parsed.db || parsed;
+        if (!data.projets?.length) throw new Error('Fichier invalide');
+        if (!confirm('Restaurer ' + data.projets.length + ' projet(s) ?')) return;
+        
+        // Mettre en mémoire
+        db = data;
         save(db);
         closeModal('modal-backup');
         renderProjets();
-        toast(`${db.projets.length} projet(s) restauré(s) ✓`);
+        toast(data.projets.length + ' projet(s) restauré(s) ✓');
+
+        // Si Supabase connecté, envoyer aussi là-bas
+        if (supabaseReady) {
+          toast('Envoi vers Supabase...');
+          for (const p of data.projets) {
+            await sbFetch('projets', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+              id: p.id, nom: p.nom||'Sans nom', immat: p.immat||'', annee: p.annee||'',
+              achat: p.achat||0, budget: p.budget||0, revente: p.revente||0,
+              notes: p.notes||'', photo: p.photo||null,
+              created_at: new Date(p.createdAt||Date.now()).toISOString()
+            })});
+          }
+          for (const d of (data.depenses||[])) {
+            await sbFetch('depenses', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+              id: d.id, projet_id: d.projetId, description: d.desc||'',
+              fourn: d.fourn||'', montant: d.montant||0, cat: d.cat||'Autre',
+              date_achat: d.date||today(), photo: d.photo||null
+            })});
+          }
+          for (const s of (data.sessions||[])) {
+            await sbFetch('sessions', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+              id: s.id, projet_id: s.projetId, description: s.desc||'',
+              duree: s.duree||0, date_session: s.date||today(), tasks: JSON.stringify(s.tasks||[])
+            })});
+          }
+          await loadFromSupabase();
+          renderProjets();
+          toast('Données sauvegardées dans Supabase ✓');
+        }
       } catch(err) {
-        toast('Fichier invalide ou corrompu');
+        toast('Erreur: ' + err.message.slice(0,40));
       }
     };
     reader.readAsText(file);

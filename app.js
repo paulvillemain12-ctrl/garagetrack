@@ -88,7 +88,10 @@ async function sbDelete(table, id) {
 
 // ─── MIGRATION LOCAL → SUPABASE ──────────────────────────────────────────────
 async function migrateLocalData() {
-  const old = JSON.parse(localStorage.getItem('garagetrack_v1') || '{}');
+  // Essaie d'abord le cache local, puis l'ancien store
+  const cached = JSON.parse(localStorage.getItem('garagetrack_cache_v1') || '{}');
+  const legacy = JSON.parse(localStorage.getItem('garagetrack_v1') || '{}');
+  const old = cached.projets?.length ? cached : legacy;
   if (!old.projets?.length) return;
   toast('Migration des données en cours...');
   for (const p of old.projets) {

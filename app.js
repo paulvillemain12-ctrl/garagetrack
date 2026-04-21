@@ -1097,13 +1097,55 @@ async function saveSupabaseConfig() {
     updateStatus();
     renderProjets();
     toast('Supabase connecté ✓');
-    const local = loadLocal();
-    if (local.projets?.length && db.projets.length === 0) {
-      setTimeout(() => forceMigrateToSupabase(), 500);
-    }
   } else {
     toast('Erreur de connexion — vérifie les clés');
   }
+}
+
+// Importer un fichier JSON de sauvegarde directement dans Supabase
+function importBackupToSupabase() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        const data = parsed.db || parsed;
+        if (!data.projets?.length) { toast('Fichier invalide'); return; }
+        if (!confirm('Importer ' + data.projets.length + ' projet(s) dans Supabase ?')) return;
+        toast('Import en cours...');
+        for (const p of data.projets) {
+          await sbFetch('projets', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+            id: p.id, nom: p.nom||'Sans nom', immat: p.immat||'', annee: p.annee||'',
+            achat: p.achat||0, budget: p.budget||0, revente: p.revente||0,
+            notes: p.notes||'', photo: p.photo||null,
+            created_at: new Date(p.createdAt||Date.now()).toISOString()
+          })});
+        }
+        for (const d of (data.depenses||[])) {
+          await sbFetch('depenses', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+            id: d.id, projet_id: d.projetId, description: d.desc||'',
+            fourn: d.fourn||'', montant: d.montant||0, cat: d.cat||'Autre',
+            date_achat: d.date||today(), photo: d.photo||null
+          })});
+        }
+        for (const s of (data.sessions||[])) {
+          await sbFetch('sessions', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+            id: s.id, projet_id: s.projetId, description: s.desc||'',
+            duree: s.duree||0, date_session: s.date||today(), tasks: JSON.stringify(s.tasks||[])
+          })});
+        }
+        await loadFromSupabase();
+        renderProjets();
+        toast(data.projets.length + ' projets importés dans Supabase ✓');
+      } catch(err) { toast('Erreur: ' + err.message.slice(0,40)); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
@@ -1118,22 +1160,15 @@ async function initApp() {
     const ok = await loadFromSupabase();
     if (ok) {
       supabaseReady = true;
-      await migrateLocalData();
-      await loadFromSupabase();
     } else {
-      db = loadLocal();
-      toast('Mode hors ligne — données locales');
+      toast('Mode hors ligne');
     }
   } else {
-    db = loadLocal();
     setTimeout(() => openModal('modal-supabase-setup'), 1500);
   }
   updateStatus();
   renderProjets();
   checkBackupReminder();
-  if (!getApiKey()) {
-    setTimeout(() => toast('Configure ta clé API dans Dépenses → ⚙'), 3000);
-  }
 }
 
 setTimeout(initApp, 800);

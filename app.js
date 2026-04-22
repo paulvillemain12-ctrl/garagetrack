@@ -144,6 +144,7 @@ function navigate(page) {
   if (page === 'depenses') { fillSelect('dep-projet'); renderDepenses(); }
   if (page === 'temps') { fillSelect('tps-projet'); renderTemps(); }
   if (page === 'bilan') { fillSelect('bilan-projet'); renderBilan(); }
+  if (page === 'entretien') { fillSelect('entretien-projet'); onEntretienProjetChange(); }
 }
 
 // ─── MODALS ──────────────────────────────────────────────────────────────────
@@ -950,6 +951,144 @@ function genererPDF(pid) {
   a.click();
   URL.revokeObjectURL(url);
   toast('Rapport généré ✓ Ouvre-le dans Safari pour imprimer en PDF');
+}
+
+
+// ─── ENTRETIEN ───────────────────────────────────────────────────────────────
+function onEntretienProjetChange() {
+  const pid = document.getElementById('entretien-projet').value;
+  const proj = db.projets.find(p => p.id === pid);
+  if (!proj) return;
+  // Pré-remplir le kilométrage si déjà sauvegardé
+  const saved = JSON.parse(localStorage.getItem('gt_entretien_' + pid) || '{}');
+  if (saved.km) document.getElementById('ent-km').value = saved.km;
+  if (saved.moteur) document.getElementById('ent-moteur').value = saved.moteur;
+  if (saved.lastVidange) document.getElementById('ent-last-vidange').value = saved.lastVidange;
+  if (saved.result) renderEntretienResult(saved.result);
+  else document.getElementById('entretien-result').innerHTML = '';
+}
+
+async function analyserEntretien() {
+  const apiKey = getApiKey();
+  if (!apiKey) { toast('Configure ta clé API'); openApiKeyModal(); return; }
+  const pid = document.getElementById('entretien-projet').value;
+  const proj = db.projets.find(p => p.id === pid);
+  if (!proj) { toast('Sélectionne un projet'); return; }
+  const moteur = document.getElementById('ent-moteur').value.trim();
+  if (!moteur) { toast('Rentre la motorisation'); return; }
+  const km = parseInt(document.getElementById('ent-km').value) || 0;
+  const lastVidange = parseInt(document.getElementById('ent-last-vidange').value) || 0;
+
+  const btn = document.getElementById('btn-entretien-analyze');
+  btn.textContent = 'Recherche en cours...'; btn.disabled = true;
+
+  try {
+    const prompt = `Tu es un expert en mécanique automobile. Voici le véhicule : ${proj.nom}${proj.annee ? ' (' + proj.annee + ')' : ''}, motorisation : ${moteur}.
+Kilométrage actuel : ${km > 0 ? km + ' km' : 'inconnu'}.
+Dernière vidange à : ${lastVidange > 0 ? lastVidange + ' km' : 'inconnue'}.
+
+Réponds UNIQUEMENT en JSON valide sans markdown :
+{
+  "huile": {
+    "spec": "ex: 5W30 ACEA C3",
+    "quantite": "ex: 4.5L avec filtre",
+    "marque_recommandee": "ex: Castrol Edge 5W30"
+  },
+  "filtres": {
+    "huile": "ex: Mann W 712/95",
+    "air": "ex: Mann C 30 130",
+    "habitacle": "ex: Mann CU 2545",
+    "carburant": "ex: Mann WK 939"
+  },
+  "interventions": [
+    {
+      "nom": "Vidange + filtre huile",
+      "intervalle_km": 15000,
+      "dernier_km": ${lastVidange || 0},
+      "statut": "urgent|bientot|ok",
+      "detail": "courte explication"
+    }
+  ],
+  "conseils": "2-3 phrases de conseils spécifiques à ce moteur"
+}
+Pour les statuts: urgent = dépassé ou < 2000km, bientot = < 5000km, ok = > 5000km restants. Inclus vidange, distribution/chaîne, bougies si essence, freins, liquide de frein, filtres.`;
+
+    const response = await fetch('https://restless-star-0f7c.paulvillemain12.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 1200,
+        system: 'Tu es un expert mécanique. Réponds UNIQUEMENT en JSON valide, sans markdown ni texte autour.',
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!response.ok) throw new Error('Erreur API');
+    const data = await response.json();
+    const rawText = data.content[0].text.trim();
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Réponse invalide');
+    const result = JSON.parse(jsonMatch[0]);
+
+    // Sauvegarder localement
+    localStorage.setItem('gt_entretien_' + pid, JSON.stringify({ km, moteur, lastVidange, result }));
+    renderEntretienResult(result);
+    toast('Analyse terminée ✓');
+
+  } catch(e) {
+    toast('Erreur: ' + e.message.slice(0, 40));
+  } finally {
+    btn.textContent = 'Analyser avec l'IA'; btn.disabled = false;
+  }
+}
+
+function renderEntretienResult(r) {
+  const el = document.getElementById('entretien-result');
+  if (!r) { el.innerHTML = ''; return; }
+
+  const statutColor = { urgent: 'var(--red)', bientot: 'var(--orange)', ok: 'var(--green)' };
+  const statutLabel = { urgent: 'URGENT', bientot: 'BIENTÔT', ok: 'OK' };
+
+  const intervsHtml = (r.interventions || []).map(i => `
+    <div style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:0.5px solid var(--border)">
+      <div style="width:8px;height:8px;border-radius:50%;background:${statutColor[i.statut]||'var(--text3)'};flex-shrink:0;margin-top:6px;box-shadow:0 0 6px ${statutColor[i.statut]||'transparent'}"></div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:500;color:var(--text)">${i.nom}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">${i.detail}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Tous les ${i.intervalle_km?.toLocaleString()} km</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:${statutColor[i.statut]||'var(--text3)'};letter-spacing:1px;flex-shrink:0">${statutLabel[i.statut]||''}</div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="card" style="margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:12px">Huile moteur</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="metric-card"><div class="metric-lbl">Spécification</div><div style="font-size:15px;font-weight:600;color:var(--accent)">${r.huile?.spec || '—'}</div></div>
+        <div class="metric-card"><div class="metric-lbl">Quantité</div><div style="font-size:15px;font-weight:600;color:var(--text)">${r.huile?.quantite || '—'}</div></div>
+      </div>
+      ${r.huile?.marque_recommandee ? `<div style="font-size:12px;color:var(--text2);margin-top:10px">Recommandé : <strong style="color:var(--text)">${r.huile.marque_recommandee}</strong></div>` : ''}
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:12px">Références filtres</div>
+      ${Object.entries(r.filtres || {}).map(([k, v]) => `
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--border)">
+          <span style="font-size:13px;color:var(--text2);text-transform:capitalize">${k === 'huile' ? 'Filtre huile' : k === 'air' ? 'Filtre air' : k === 'habitacle' ? 'Filtre habitacle' : 'Filtre carburant'}</span>
+          <span style="font-size:13px;font-weight:500;font-family:'Barlow Condensed',monospace;color:var(--text)">${v}</span>
+        </div>`).join('')}
+    </div>
+
+    <div class="card" style="margin-bottom:12px">
+      <div class="section-title" style="margin-bottom:4px">Plan d'entretien</div>
+      ${intervsHtml}
+    </div>
+
+    ${r.conseils ? `<div class="card" style="margin-bottom:16px">
+      <div class="section-title" style="margin-bottom:8px">Conseils spécifiques</div>
+      <p style="font-size:13px;color:var(--text2);line-height:1.6">${r.conseils}</p>
+    </div>` : ''}
+  `;
 }
 
 // ─── BACKUP / RESTORE ────────────────────────────────────────────────────────

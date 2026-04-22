@@ -381,18 +381,21 @@ function renderProjets() {
     const photoHtml = p.photo
       ? `<img class="proj-card-photo" src="${p.photo}" alt="${p.nom}" />`
       : `<div class="proj-card-photo-placeholder">🚗</div>`;
+    const badgeStyle = pct > 100 ? 'background:rgba(248,81,73,0.85);color:#fff' : pct > 80 ? 'background:rgba(240,136,62,0.85);color:#fff' : 'background:rgba(57,211,83,0.85);color:#000';
     return `<div class="proj-card" onclick="openProjetDetail('${p.id}')">
       ${photoHtml}
+      <div class="proj-card-shade"></div>
+      ${budget > 0 ? `<div class="proj-card-badge" style="${badgeStyle}">${pct}% budget</div>` : ''}
       <div class="proj-card-body">
         <div class="proj-card-title">${p.nom.toUpperCase()}</div>
-        <div class="proj-card-sub">${[p.immat, p.annee].filter(Boolean).join(' · ') || 'Pas d\'immat'}</div>
+        <div class="proj-card-sub">${[p.immat, p.annee].filter(Boolean).join(' · ') || 'Appuie pour le détail'}</div>
         <div class="proj-card-stats">
           <div class="stat"><span class="stat-val">${fmtInt(deps)}</span><span class="stat-lbl">Dépensé${budget ? ' / ' + fmtInt(budget) : ''}</span></div>
           <div class="stat"><span class="stat-val">${hrs.toFixed(1)} h</span><span class="stat-lbl">Travaillées</span></div>
           ${p.revente ? `<div class="stat"><span class="stat-val">${fmtInt(p.revente)}</span><span class="stat-lbl">Revente visée</span></div>` : ''}
         </div>
-        ${budget > 0 ? `<div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,pct)}%;background:${color}"></div></div>` : ''}
       </div>
+      ${budget > 0 ? `<div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,pct)}%;background:${color}"></div></div>` : ''}
     </div>`;
   }).join('');
 }

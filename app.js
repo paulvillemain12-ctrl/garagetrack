@@ -963,6 +963,7 @@ function onEntretienProjetChange() {
   const saved = JSON.parse(localStorage.getItem('gt_entretien_' + pid) || '{}');
   if (saved.km) document.getElementById('ent-km').value = saved.km;
   if (saved.moteur) document.getElementById('ent-moteur').value = saved.moteur;
+  if (saved.codeMoteur) document.getElementById('ent-code-moteur').value = saved.codeMoteur;
   if (saved.lastVidange) document.getElementById('ent-last-vidange').value = saved.lastVidange;
   if (saved.result) renderEntretienResult(saved.result);
   else document.getElementById('entretien-result').innerHTML = '';
@@ -975,6 +976,7 @@ async function analyserEntretien() {
   const proj = db.projets.find(p => p.id === pid);
   if (!proj) { toast('Sélectionne un projet'); return; }
   const moteur = document.getElementById('ent-moteur').value.trim();
+  const codeMoteur = document.getElementById('ent-code-moteur').value.trim();
   if (!moteur) { toast('Rentre la motorisation'); return; }
   const km = parseInt(document.getElementById('ent-km').value) || 0;
   const lastVidange = parseInt(document.getElementById('ent-last-vidange').value) || 0;
@@ -983,9 +985,14 @@ async function analyserEntretien() {
   btn.textContent = 'Recherche en cours...'; btn.disabled = true;
 
   try {
-    const prompt = `Tu es un expert en mécanique automobile. Voici le véhicule : ${proj.nom}${proj.annee ? ' (' + proj.annee + ')' : ''}, motorisation : ${moteur}.
-Kilométrage actuel : ${km > 0 ? km + ' km' : 'inconnu'}.
-Dernière vidange à : ${lastVidange > 0 ? lastVidange + ' km' : 'inconnue'}.
+    const prompt = `Tu es un expert en mécanique automobile. Voici le véhicule :
+- Modèle : ${proj.nom}${proj.annee ? ' (' + proj.annee + ')' : ''}
+- Motorisation : ${moteur}
+${codeMoteur ? '- Code moteur EXACT : ' + codeMoteur + ' (utilise ce code en priorité pour toutes les specs)' : ''}
+- Kilométrage actuel : ${km > 0 ? km + ' km' : 'inconnu'}
+- Dernière vidange à : ${lastVidange > 0 ? lastVidange + ' km' : 'inconnue'}
+
+IMPORTANT : Basé sur le code moteur exact si fourni. Pour la distribution, indique PRÉCISÉMENT si c'est une courroie ou une chaîne pour CE moteur spécifique. Ne suppose pas.
 
 Réponds UNIQUEMENT en JSON valide sans markdown :
 {
@@ -1031,7 +1038,7 @@ Pour les statuts: urgent = dépassé ou < 2000km, bientot = < 5000km, ok = > 500
     const result = JSON.parse(jsonMatch[0]);
 
     // Sauvegarder localement
-    localStorage.setItem('gt_entretien_' + pid, JSON.stringify({ km, moteur, lastVidange, result }));
+    localStorage.setItem('gt_entretien_' + pid, JSON.stringify({ km, moteur, codeMoteur, lastVidange, result }));
     renderEntretienResult(result);
     toast('Analyse terminée ✓');
 

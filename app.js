@@ -1038,7 +1038,7 @@ Pour les statuts: urgent = dépassé ou < 2000km, bientot = < 5000km, ok = > 500
   } catch(e) {
     toast('Erreur: ' + e.message.slice(0, 40));
   } finally {
-    btn.textContent = 'Analyser avec l'IA'; btn.disabled = false;
+    btn.textContent = "Analyser avec l'IA"; btn.disabled = false;
   }
 }
 

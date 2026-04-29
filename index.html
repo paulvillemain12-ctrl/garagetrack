@@ -540,6 +540,8 @@ const state = {
   running: false, ms: 0, rafId: null, lastT: 0,
   aiLoading: false, aiResult: null,
   entretienMoteur: '', entretienCode: '', entretienKm: 0, entretienLastVidange: 0,
+  expenseFilterId: null,
+  bilanFilterId: null,
 };
 
 // ════════════════════════════════════════════════════════════════════════
@@ -714,62 +716,63 @@ function renderProjects() {
 }
 
 function renderExpenses() {
-  const all = PROJECTS.flatMap(p => p.expenses.map(e => ({...e, project: p.name, projectId: p.id})));
+  // Filtre : si un projet est sélectionné, afficher ses dépenses ; sinon tout
+  const filterId = state.expenseFilterId || null;
+  const sourceProjects = filterId ? PROJECTS.filter(p => p.id === filterId) : PROJECTS;
+  const all = sourceProjects.flatMap(p => p.expenses.map(e => ({...e, project: p.name, projectId: p.id})));
   all.sort((a,b) => b.date.localeCompare(a.date));
   const total = all.reduce((s, e) => s + e.amount, 0);
-
   const byDate = {};
   all.forEach(e => { (byDate[e.date] = byDate[e.date] || []).push(e); });
-
   const catTotals = CATEGORIES.map(c => ({
-    label: c,
+    label: c, color: CAT_COLORS[c],
     value: all.filter(e => e.cat === c).reduce((s, e) => s + e.amount, 0),
-    color: CAT_COLORS[c],
   })).filter(c => c.value > 0);
   const catMax = catTotals.reduce((s, c) => s + c.value, 0) || 1;
 
-  const html = `
+  const pillsHtml = `<div class="pill-row" style="margin-bottom:14px">
+    <button class="pill ${!filterId ? 'active' : ''}" data-action="filter-expenses" data-id="">Tous</button>
+    ${PROJECTS.map(p => `<button class="pill ${filterId === p.id ? 'active' : ''}" data-action="filter-expenses" data-id="${p.id}">${p.name}</button>`).join('')}
+  </div>`;
+
+  const h = `
     <div class="screen">
+      ${pillsHtml}
       <div class="card total-card">
-        <div class="total-label">Dépenses cumulées</div>
+        <div class="total-label">${filterId ? PROJECTS.find(p=>p.id===filterId)?.name : 'Toutes dépenses'}</div>
         <div class="total-value" data-count-to="${total}" data-count-fmt="eur">0</div>
-        <div class="total-sub">${all.length} entrées · ${PROJECTS.length} projets</div>
+        <div class="total-sub">${all.length} entrée${all.length>1?'s':''} · ${sourceProjects.length} projet${sourceProjects.length>1?'s':''}</div>
         <div class="cat-bars">
           ${catTotals.map((c, i) => `
             <div class="cat-row">
               <div class="cat-head"><span>${c.label}</span><span class="v">${fmtEur(c.value)}</span></div>
-              <div class="cat-bar"><div class="cat-fill" style="width:${(c.value/catMax)*100}%; background:${c.color}; animation-delay:${i*80}ms"></div></div>
-            </div>
-          `).join('')}
+              <div class="cat-bar"><div class="cat-fill" style="width:${(c.value/catMax)*100}%;background:${c.color};animation-delay:${i*80}ms"></div></div>
+            </div>`).join('')}
         </div>
       </div>
-
       <div class="section-title">
         <h2>Historique</h2>
         <button class="add-btn" data-action="new-expense">+ Dépense</button>
       </div>
-
+      ${all.length === 0 ? '<div class="empty">Aucune dépense pour ce projet</div>' : ''}
       ${Object.entries(byDate).map(([date, items], gi) => `
         <div class="day-group">
           <div class="day-label">${fmtDate(date).toUpperCase()}</div>
           <div class="expense-list">
             ${items.map((e, i) => `
-              <div class="expense" style="animation: gt-fade-in 400ms ease ${gi*60+i*30}ms both">
-                <div class="expense-bar ${CAT_CLASS[e.cat] || 'cat-autre'}"></div>
+              <div class="expense" style="animation:gt-fade-in 400ms ease ${gi*60+i*30}ms both">
+                <div class="expense-bar ${CAT_CLASS[e.cat]||'cat-autre'}"></div>
                 <div class="expense-body">
                   <div class="expense-desc">${e.desc}</div>
-                  <div class="expense-meta">${e.project}${e.vendor ? ' · ' + e.vendor : ''} · ${e.cat}</div>
+                  <div class="expense-meta">${filterId ? '' : e.project + ' · '}${e.vendor ? e.vendor + ' · ' : ''}${e.cat}</div>
                 </div>
                 <div class="expense-amount">${fmtEur(e.amount)}</div>
                 <button data-action="delete-expense" data-pid="${e.projectId}" data-eid="${e.id}" style="padding:4px 6px;color:var(--text-mute);font-size:12px;flex-shrink:0">✕</button>
-              </div>
-            `).join('')}
+              </div>`).join('')}
           </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-  $('#main').innerHTML = html;
+        </div>`).join('')}
+    </div>`;
+  $('#main').innerHTML = h;
   setTimeout(() => animateCounters($('#main')), 30);
 }
 
@@ -878,22 +881,41 @@ function startChronoLoop() {
 }
 
 function renderBilan() {
-  const totalSpent = PROJECTS.reduce((s, p) => s + projectTotal(p), 0);
-  const totalHours = PROJECTS.reduce((s, p) => s + projectHours(p), 0);
-  const totalPurchase = PROJECTS.reduce((s, p) => s + p.purchase, 0);
-  const totalTarget = PROJECTS.reduce((s, p) => s + p.target, 0);
+  const filterId = state.bilanFilterId || null;
+  const sourceProjects = filterId ? PROJECTS.filter(p => p.id === filterId) : PROJECTS;
+  const totalSpent = sourceProjects.reduce((s, p) => s + projectTotal(p), 0);
+  const totalHours = sourceProjects.reduce((s, p) => s + projectHours(p), 0);
+  const totalPurchase = sourceProjects.reduce((s, p) => s + p.purchase, 0);
+  const totalTarget = sourceProjects.reduce((s, p) => s + p.target, 0);
   const projectedMargin = totalTarget - totalPurchase - totalSpent;
   const roi = totalSpent ? (projectedMargin / (totalPurchase + totalSpent)) * 100 : 0;
-  const monthly = [
-    { m: 'Nov', v: 220 }, { m: 'Déc', v: 480 }, { m: 'Jan', v: 320 },
-    { m: 'Fév', v: 740 }, { m: 'Mar', v: 1120 }, { m: 'Avr', v: 1750, hl: true },
-  ];
-  const monthMax = Math.max(...monthly.map(m => m.v));
 
-  const html = `
+  // Graphique mensuel basé sur les vraies dépenses
+  const monthMap = {};
+  sourceProjects.flatMap(p => p.expenses).forEach(e => {
+    if (!e.date) return;
+    const m = e.date.slice(0,7);
+    monthMap[m] = (monthMap[m] || 0) + e.amount;
+  });
+  const monthly = Object.entries(monthMap).sort().slice(-6).map(([k,v]) => ({
+    m: ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'][parseInt(k.slice(5))-1],
+    v, hl: false
+  }));
+  if (monthly.length > 0) monthly[monthly.length-1].hl = true;
+  const fallback = monthly.length === 0;
+  const chartData = fallback ? [{m:'—',v:1,hl:true}] : monthly;
+  const monthMax = Math.max(...chartData.map(m => m.v), 1);
+
+  const pillsHtml = `<div class="pill-row" style="margin-bottom:14px">
+    <button class="pill ${!filterId ? 'active' : ''}" data-action="filter-bilan" data-id="">Global</button>
+    ${PROJECTS.map(p => `<button class="pill ${filterId===p.id?'active':''}" data-action="filter-bilan" data-id="${p.id}">${p.name}</button>`).join('')}
+  </div>`;
+
+  const h = `
     <div class="screen">
+      ${pillsHtml}
       <div class="card roi-card">
-        <div class="roi-label">Marge prévue · global</div>
+        <div class="roi-label">Marge prévue · ${filterId ? sourceProjects[0]?.name : 'global'}</div>
         <div class="roi-value ${projectedMargin>0?'success':'danger'}" data-count-to="${projectedMargin}" data-count-fmt="eur-sign">0</div>
         <div class="roi-sub">ROI estimé : <strong data-count-to="${roi}" data-count-fmt="pct1">0</strong></div>
         <div class="kpi-grid">
@@ -909,14 +931,13 @@ function renderBilan() {
           <span class="chart-total">${fmtEur(monthly.reduce((s,m) => s + m.v, 0))}</span>
         </div>
         <div class="bars">
-          ${monthly.map((d, i) => `
+          ${chartData.map((d, i) => `
             <div class="bar-col">
               <div class="bar-fill-wrap">
                 <div class="bar-fill ${d.hl ? 'highlight' : ''}" style="height:${(d.v/monthMax)*100}%; animation: gt-rise 700ms cubic-bezier(.2,.8,.2,1) ${i*50}ms both"></div>
               </div>
               <div class="bar-label ${d.hl ? 'highlight' : ''}">${d.m}</div>
-            </div>
-          `).join('')}
+            </div>`).join('')}
         </div>
       </div>
 
@@ -962,7 +983,7 @@ function renderBilan() {
       </div>
     </div>
   `;
-  $('#main').innerHTML = html;
+  $('#main').innerHTML = h;
   setTimeout(() => animateCounters($('#main')), 30);
 }
 
@@ -1285,6 +1306,14 @@ document.addEventListener('click', (e) => {
     state.activeProjectId = t.dataset.id;
     state.aiResult = null;
     render();
+  }
+  else if (action === 'filter-expenses') {
+    state.expenseFilterId = t.dataset.id || null;
+    renderExpenses();
+  }
+  else if (action === 'filter-bilan') {
+    state.bilanFilterId = t.dataset.id || null;
+    renderBilan();
   }
   else if (action === 'toggle-chrono') {
     state.running = !state.running;

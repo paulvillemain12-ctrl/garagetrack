@@ -138,7 +138,15 @@ function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
-  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  const activeBtn = document.querySelector(`[data-page="${page}"]`);
+  if (activeBtn) {
+    activeBtn.classList.add('active');
+    const indicator = document.getElementById('nav-indicator');
+    if (indicator) {
+      indicator.style.left = activeBtn.offsetLeft + 'px';
+      indicator.style.width = activeBtn.offsetWidth + 'px';
+    }
+  }
   currentPage = page;
   if (page === 'projets') renderProjets();
   if (page === 'depenses') { fillSelect('dep-projet'); renderDepenses(); }
@@ -379,21 +387,34 @@ function renderProjets() {
     const budget = p.budget || 0;
     const pct = budget > 0 ? Math.min(120, Math.round(deps / budget * 100)) : 0;
     const color = pct > 100 ? 'var(--red)' : pct > 80 ? 'var(--orange)' : 'var(--green)';
-    const photoHtml = p.photo
-      ? `<img class="proj-card-photo" src="${p.photo}" alt="${p.nom}" />`
-      : `<div class="proj-card-photo-placeholder">🚗</div>`;
-    const badgeStyle = pct > 100 ? 'background:rgba(248,81,73,0.85);color:#fff' : pct > 80 ? 'background:rgba(240,136,62,0.85);color:#fff' : 'background:rgba(57,211,83,0.85);color:#000';
-    return `<div class="proj-card" onclick="openProjetDetail('${p.id}')">
-      ${photoHtml}
-      <div class="proj-card-shade"></div>
-      ${budget > 0 ? `<div class="proj-card-badge" style="${badgeStyle}">${pct}% budget</div>` : ''}
-      <div class="proj-card-body">
-        <div class="proj-card-title">${p.nom.toUpperCase()}</div>
-        <div class="proj-card-sub">${[p.immat, p.annee].filter(Boolean).join(' · ') || 'Appuie pour le détail'}</div>
-        <div class="proj-card-stats">
-          <div class="stat"><span class="stat-val">${fmtInt(deps)}</span><span class="stat-lbl">Dépensé${budget ? ' / ' + fmtInt(budget) : ''}</span></div>
-          <div class="stat"><span class="stat-val">${hrs.toFixed(1)} h</span><span class="stat-lbl">Travaillées</span></div>
-          ${p.revente ? `<div class="stat"><span class="stat-val">${fmtInt(p.revente)}</span><span class="stat-lbl">Revente visée</span></div>` : ''}
+    const carHtml = p.photo
+      ? `<img src="${p.photo}" alt="${p.nom}" style="width:100%;height:100%;object-fit:cover" />`
+      : `<div class="proj-card-car-placeholder">🚗</div>`;
+    const marge = (p.revente||0) - (p.achat||0) - deps;
+    return `<div class="proj-card" onclick="openProjetDetail('${p.id}')" style="animation-delay:${db.projets.indexOf(p)*80}ms">
+      <div class="proj-card-hero">
+        <div class="proj-card-meta">
+          <div>
+            <div class="proj-card-index">#${String(db.projets.indexOf(p)+1).padStart(3,'0')}${p.annee ? ' · ' + p.annee : ''}</div>
+            <div class="proj-card-title">${p.nom}</div>
+            <div class="proj-card-plate">${p.immat || '—'}</div>
+          </div>
+          ${budget > 0 ? `<div class="proj-card-progress-badge">${pct}%</div>` : ''}
+        </div>
+        <div class="proj-card-car">${carHtml}</div>
+      </div>
+      <div class="proj-card-stats">
+        <div class="proj-stat">
+          <div class="proj-stat-val">${fmtInt(deps)}</div>
+          <div class="proj-stat-lbl">Dépensé</div>
+        </div>
+        <div class="proj-stat">
+          <div class="proj-stat-val">${hrs.toFixed(1)} h</div>
+          <div class="proj-stat-lbl">Travaillées</div>
+        </div>
+        <div class="proj-stat">
+          <div class="proj-stat-val" style="color:${marge>=0?'var(--success)':'var(--danger)'}">${marge>=0?'+':''}${fmtInt(marge)}</div>
+          <div class="proj-stat-lbl">Marge</div>
         </div>
       </div>
       ${budget > 0 ? `<div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,pct)}%;background:${color}"></div></div>` : ''}
@@ -1352,7 +1373,18 @@ async function initApp() {
   checkBackupReminder();
 }
 
-setTimeout(initApp, 800);
+setTimeout(() => {
+  initApp();
+  // Init nav indicator
+  setTimeout(() => {
+    const activeBtn = document.querySelector('.nav-item.active');
+    const indicator = document.getElementById('nav-indicator');
+    if (activeBtn && indicator) {
+      indicator.style.left = activeBtn.offsetLeft + 'px';
+      indicator.style.width = activeBtn.offsetWidth + 'px';
+    }
+  }, 900);
+}, 800);
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});

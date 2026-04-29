@@ -58,7 +58,7 @@
   .header { padding-top: max(16px, calc(env(safe-area-inset-top, 0px) + 8px)); }
 
   /* Header */
-  .header { padding: 16px 20px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .header { padding: 16px 20px 12px; padding-top: max(16px, env(safe-area-inset-top, 16px)); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--surface); }
   .brand { display: flex; align-items: center; gap: 10px; }
   .logo { width: 30px; height: 30px; border-radius: 7px; background: var(--accent); display: flex; align-items: center; justify-content: center; }
   .brand-name { font-size: 14px; font-weight: 700; letter-spacing: 0.4px; color: var(--text); }

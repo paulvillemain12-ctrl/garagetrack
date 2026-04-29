@@ -379,6 +379,10 @@
 <div class="toasts" id="toasts"></div>
 
 <script>
+// DOM helpers — defined first so inline onclick handlers work
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
 // ════════════════════════════════════════════════════════════════════════
 // CONFIG
 // ════════════════════════════════════════════════════════════════════════
@@ -532,22 +536,15 @@ const CAT_COLORS = {
 // ════════════════════════════════════════════════════════════════════════
 const state = {
   tab: 'projects',
-  activeProjectId: PROJECTS[0].id,
-  // chrono
-  running: false,
-  ms: 0,
-  rafId: null,
-  lastT: 0,
-  // ai
-  aiLoading: false,
-  aiResult: null,
+  activeProjectId: null,
+  running: false, ms: 0, rafId: null, lastT: 0,
+  aiLoading: false, aiResult: null,
+  entretienMoteur: '', entretienCode: '', entretienKm: 0, entretienLastVidange: 0,
 };
 
 // ════════════════════════════════════════════════════════════════════════
 // HELPERS
 // ════════════════════════════════════════════════════════════════════════
-const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const fmtEur = (v) => Math.round(v).toLocaleString('fr-FR') + ' €';
 const fmtNum = (v, d = 0) => Number(v).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
 const fmtKm = (v) => Math.round(v).toLocaleString('fr-FR') + ' km';
@@ -565,7 +562,7 @@ const fmtTime = (ms) => {
 const projectTotal = (p) => p.expenses.reduce((s, e) => s + e.amount, 0);
 const projectHours = (p) => p.sessions.reduce((s, e) => s + e.hours, 0);
 const projectMargin = (p) => p.target - p.purchase - projectTotal(p);
-const projectById = (id) => PROJECTS.find(p => p.id === id);
+const projectById = (id) => id ? PROJECTS.find(p => p.id === id) : PROJECTS[0];
 
 // Toast
 function toast(msg, kind = 'success') {

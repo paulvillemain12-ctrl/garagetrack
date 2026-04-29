@@ -99,13 +99,13 @@
   .project-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform 120ms, border-color 200ms; }
   .project-card:active { transform: scale(0.99); }
   .project-card:hover { border-color: var(--border-strong); }
-  .project-hero { padding: 14px 16px 8px; background: linear-gradient(180deg, var(--surface-alt) 0%, var(--surface) 100%); border-bottom: 1px solid var(--border); }
+  .project-hero { padding: 14px 16px 0; background: var(--surface-alt); border-bottom: 1px solid var(--border); }
   .project-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
   .project-meta { font-size: 11px; color: var(--text-dim); font-weight: 500; line-height: 1.2; }
   .project-name { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; line-height: 1.1; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .project-plate { font-family: var(--num); font-size: 11px; font-weight: 600; color: var(--accent); margin-top: 4px; letter-spacing: 0.5px; }
   .progress-badge { padding: 4px 10px; border-radius: 6px; background: var(--surface-alt); border: 1px solid var(--border); font-family: var(--num); font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; }
-  .car-illu { height: 70px; margin: -2px 0; }
+  .car-illu { height: 120px; margin: 8px -16px -8px; overflow: hidden; }
 
   .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--border); }
   .stats-row > div { padding: 10px 12px; }
@@ -679,7 +679,10 @@ function renderProjects() {
                 </div>
                 <div class="progress-badge">${Math.round(p.progress*100)}%</div>
               </div>
-              <div class="car-illu">${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;display:block">` : carSvg(p.color)}</div>
+              <div class="car-illu" style="position:relative">
+                ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;display:block;object-position:center 40%">` : carSvg(p.color)}
+                <div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to top,rgba(20,20,20,0.7) 0%,transparent 100%)"></div>
+              </div>
             </div>
             <div class="stats-row">
               <div>

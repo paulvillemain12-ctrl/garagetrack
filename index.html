@@ -1,489 +1,1621 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>GarageTrack</title>
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#0a0a0a" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="GarageTrack" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" />
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0a" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="GarageTrack" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="manifest" href="manifest.json" />
+<title>GarageTrack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface-alt: #1c1c1c;
+    --surface-hover: #262626;
+    --border: rgba(255,255,255,0.07);
+    --border-strong: rgba(255,255,255,0.12);
+    --accent: #84cc16;
+    --accent-dim: rgba(132,204,22,0.18);
+    --text: #fafafa;
+    --text-dim: #a3a3a3;
+    --text-mute: #737373;
+    --danger: #f43f5e;
+    --success: #84cc16;
+    --warn: #f59e0b;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter Tight", Inter, system-ui, sans-serif;
+    --num: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter Tight", Inter, system-ui, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  body { min-height: 100vh; min-height: 100dvh; overflow-x: hidden; }
+  button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+  input, textarea, select { font: inherit; color: inherit; }
+  ::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+  /* Animations */
+  @keyframes gt-ripple { from { width: 10px; height: 10px; opacity: 0.4; } to { width: 320px; height: 320px; opacity: 0; } }
+  @keyframes gt-toast { 0% { transform: translateY(20px); opacity: 0; } 10% { transform: translateY(0); opacity: 1; } 90% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-8px); opacity: 0; } }
+  @keyframes gt-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.4); } }
+  @keyframes gt-rise-in { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  @keyframes gt-fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes gt-tab-in { from { transform: translateX(8px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes gt-spin { to { transform: rotate(360deg); } }
+  @keyframes gt-bar { from { width: 0; } }
+  @keyframes gt-rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+
+  /* Layout */
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); position: relative; }
+  .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+  .header { padding-top: max(16px, calc(env(safe-area-inset-top, 0px) + 8px)); }
+
+  /* Header */
+  .header { padding: 16px 20px 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .logo { width: 30px; height: 30px; border-radius: 7px; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+  .brand-name { font-size: 14px; font-weight: 700; letter-spacing: 0.4px; color: var(--text); }
+  .brand-sub { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+  .sync-pill { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); cursor: pointer; transition: transform 120ms; }
+  .sync-pill:active { transform: scale(0.96); }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); animation: gt-pulse 2s ease-in-out infinite; }
+  .sync-text { font-size: 11px; color: var(--text-dim); font-weight: 500; }
+
+  /* Tabs */
+  .tabs { position: relative; display: flex; border-bottom: 1px solid var(--border); background: var(--surface); padding: 0 8px; }
+  .tab { flex: 1; padding: 12px 4px 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; color: var(--text-dim); transition: color 200ms, transform 120ms; cursor: pointer; }
+  .tab:active { transform: scale(0.94); }
+  .tab.active { color: var(--text); }
+  .tab-icon { font-size: 16px; transition: transform 200ms cubic-bezier(.2,.8,.2,1); }
+  .tab.active .tab-icon { transform: scale(1.1); }
+  .tab-indicator { position: absolute; bottom: -1px; height: 2px; background: var(--accent); transition: left 280ms cubic-bezier(.2,.8,.2,1), width 280ms cubic-bezier(.2,.8,.2,1); box-shadow: 0 0 8px var(--accent); }
+
+  /* Main scrolling area */
+  .main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 24px; }
+  .screen { padding: 16px 16px 100px; animation: gt-tab-in 320ms cubic-bezier(.2,.8,.2,1); }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat { padding: 14px 16px; }
+  .stat-label { font-size: 11px; color: var(--text-dim); font-weight: 500; }
+  .stat-value { font-family: var(--num); font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; margin-top: 8px; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+  .stat-value.accent { color: var(--accent); font-size: 24px; }
+
+  .section-title { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+  .section-title h2 { font-size: 14px; color: var(--text); font-weight: 600; margin: 0; letter-spacing: -0.2px; }
+  .section-title .count { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+  .add-btn { font-size: 13px; font-weight: 600; color: var(--accent); padding: 4px 8px; cursor: pointer; transition: transform 120ms; }
+  .add-btn:active { transform: scale(0.94); }
+
+  .project-list { display: flex; flex-direction: column; gap: 12px; }
+  .project-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform 120ms, border-color 200ms; }
+  .project-card:active { transform: scale(0.99); }
+  .project-card:hover { border-color: var(--border-strong); }
+  .project-hero { padding: 14px 16px 8px; background: linear-gradient(180deg, var(--surface-alt) 0%, var(--surface) 100%); border-bottom: 1px solid var(--border); }
+  .project-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 4px; }
+  .project-meta { font-size: 11px; color: var(--text-dim); font-weight: 500; line-height: 1.2; }
+  .project-name { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; line-height: 1.1; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .project-plate { font-family: var(--num); font-size: 11px; font-weight: 600; color: var(--accent); margin-top: 4px; letter-spacing: 0.5px; }
+  .progress-badge { padding: 4px 10px; border-radius: 6px; background: var(--surface-alt); border: 1px solid var(--border); font-family: var(--num); font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; }
+  .car-illu { height: 70px; margin: -2px 0; }
+
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--border); }
+  .stats-row > div { padding: 10px 12px; }
+  .stats-row > div + div { border-left: 1px solid var(--border); }
+  .stats-row .label { font-size: 10px; color: var(--text-dim); font-weight: 500; }
+  .stats-row .val { font-family: var(--num); font-size: 14px; font-weight: 700; color: var(--text); margin-top: 3px; letter-spacing: -0.2px; font-variant-numeric: tabular-nums; }
+  .stats-row .val.success { color: var(--success); }
+  .stats-row .val.danger { color: var(--danger); }
+
+  .budget-row { padding: 10px 16px 14px; }
+  .budget-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); font-weight: 500; margin-bottom: 6px; }
+  .budget-head .v { color: var(--text); font-family: var(--num); font-variant-numeric: tabular-nums; }
+  .budget-bar { height: 4px; background: var(--surface-alt); border-radius: 2px; overflow: hidden; }
+  .budget-fill { height: 100%; background: var(--accent); transition: width 800ms cubic-bezier(.2,.8,.2,1); box-shadow: 0 0 8px var(--accent); }
+  .budget-fill.over { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+
+  .add-card { margin-top: 14px; padding: 14px; background: transparent; border: 1.5px dashed var(--border-strong); border-radius: var(--radius); text-align: center; font-size: 13px; font-weight: 600; color: var(--text-dim); cursor: pointer; width: 100%; transition: border-color 200ms, color 200ms, transform 120ms; }
+  .add-card:hover { border-color: var(--accent); color: var(--accent); }
+  .add-card:active { transform: scale(0.99); }
+
+  /* Big total */
+  .total-card { padding: 18px 20px; margin-bottom: 16px; }
+  .total-label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+  .total-value { font-family: var(--num); font-size: 40px; font-weight: 700; color: var(--text); line-height: 1; margin-top: 8px; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .total-sub { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+
+  .cat-bars { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .cat-row { }
+  .cat-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); font-weight: 500; margin-bottom: 4px; }
+  .cat-head .v { color: var(--text); font-family: var(--num); font-variant-numeric: tabular-nums; }
+  .cat-bar { height: 6px; background: var(--surface-alt); border-radius: 3px; overflow: hidden; }
+  .cat-fill { height: 100%; border-radius: 3px; animation: gt-bar 800ms cubic-bezier(.2,.8,.2,1) both; }
+
+  /* Expense list */
+  .day-group { margin-bottom: 16px; }
+  .day-label { font-size: 11px; color: var(--text-dim); font-weight: 500; margin-bottom: 6px; padding-left: 2px; }
+  .expense-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .expense { padding: 12px 14px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: background 120ms; }
+  .expense:hover { background: var(--surface-alt); }
+  .expense + .expense { border-top: 1px solid var(--border); }
+  .expense-bar { width: 4px; align-self: stretch; border-radius: 2px; }
+  .expense-body { flex: 1; min-width: 0; }
+  .expense-desc { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .expense-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .expense-amount { font-family: var(--num); font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.3px; font-variant-numeric: tabular-nums; }
+
+  /* Time / chrono */
+  .project-selector { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+  .ps-current { min-width: 0; }
+  .ps-label { font-size: 11px; color: var(--text-dim); font-weight: 500; }
+  .ps-name { font-size: 15px; font-weight: 600; color: var(--text); margin-top: 2px; }
+  .ps-chips { display: flex; gap: 6px; flex-shrink: 0; }
+  .ps-chip { width: 32px; height: 32px; border-radius: 8px; background: var(--surface-alt); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-family: var(--num); font-size: 11px; font-weight: 700; color: var(--text-dim); cursor: pointer; transition: all 200ms; }
+  .ps-chip:active { transform: scale(0.9); }
+  .ps-chip.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  .chrono-card { padding: 24px 18px 18px; position: relative; overflow: hidden; }
+  .chrono-ring1 { position: absolute; top: -60px; left: 50%; transform: translateX(-50%); width: 320px; height: 320px; border-radius: 50%; border: 1px dashed var(--border); opacity: 0.5; pointer-events: none; }
+  .chrono-ring2 { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 260px; height: 260px; border-radius: 50%; border: 1px solid var(--border); opacity: 0.4; pointer-events: none; }
+  .chrono-status { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 12px; }
+  .chrono-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-dim); transition: background 200ms, box-shadow 200ms; }
+  .chrono-status.running .chrono-status-dot { background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: gt-pulse 1s ease-in-out infinite; }
+  .chrono-status-text { font-size: 11px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.2px; transition: color 200ms; }
+  .chrono-status.running .chrono-status-text { color: var(--accent); }
+
+  .chrono-display { text-align: center; position: relative; z-index: 2; font-family: var(--num); font-weight: 700; color: var(--text); letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+  .chrono-display .digit { font-size: 56px; line-height: 1; }
+  .chrono-display .sep { font-size: 56px; color: var(--text-dim); margin: 0 4px; }
+  .chrono-display .cs { font-size: 22px; color: var(--accent); margin-left: 6px; }
+  .chrono-sub { text-align: center; margin-top: 8px; font-size: 12px; color: var(--text-dim); font-weight: 500; }
+  .chrono-dial { position: relative; height: 40px; margin-top: 12px; display: flex; align-items: center; justify-content: center; }
+
+  .chrono-controls { display: flex; gap: 8px; margin-top: 14px; }
+  .btn { padding: 14px; border-radius: var(--radius); text-align: center; font-size: 13px; font-weight: 700; letter-spacing: 0.2px; cursor: pointer; transition: transform 120ms, background 200ms, opacity 200ms; position: relative; overflow: hidden; }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: var(--bg); border: 1px solid var(--accent); flex: 2; }
+  .btn-primary.running { background: var(--surface-alt); color: var(--text); border-color: var(--border); }
+  .btn-secondary { background: var(--surface-alt); color: var(--text-dim); border: 1px solid var(--border); flex: 1; }
+  .btn-ghost { margin-top: 8px; padding: 12px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius); text-align: center; font-size: 12px; font-weight: 600; color: var(--text); cursor: pointer; transition: transform 120ms, border-color 200ms; width: 100%; }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-ghost:active { transform: scale(0.99); }
+
+  .ripple { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); background: currentColor; opacity: 0.18; pointer-events: none; animation: gt-ripple 600ms cubic-bezier(.2,.8,.2,1) forwards; }
+
+  /* Sessions list */
+  .session-list { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-top: 8px; }
+  .session { padding: 11px 14px; display: flex; align-items: center; gap: 12px; }
+  .session + .session { border-top: 1px solid var(--border); }
+  .session-date { font-family: var(--num); font-size: 11px; color: var(--text-dim); width: 60px; font-weight: 500; }
+  .session-desc { flex: 1; font-size: 13px; color: var(--text); }
+  .session-hours { font-family: var(--num); font-size: 13px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  /* Bilan */
+  .roi-card { padding: 20px; }
+  .roi-label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+  .roi-value { font-family: var(--num); font-size: 40px; font-weight: 700; line-height: 1; margin-top: 8px; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .roi-value.success { color: var(--success); }
+  .roi-value.danger { color: var(--danger); }
+  .roi-sub { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+  .roi-sub strong { color: var(--text); font-weight: 700; font-family: var(--num); }
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 16px; }
+  .kpi { padding: 10px 12px; background: var(--surface-alt); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  .kpi-label { font-size: 10px; color: var(--text-dim); font-weight: 500; }
+  .kpi-val { font-family: var(--num); font-size: 14px; font-weight: 700; color: var(--text); margin-top: 3px; letter-spacing: -0.2px; font-variant-numeric: tabular-nums; }
+  .kpi-val.accent { color: var(--accent); }
+
+  .chart-card { padding: 16px; margin-bottom: 14px; }
+  .chart-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .chart-title { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+  .chart-total { font-family: var(--num); font-size: 14px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .chart-total.text { color: var(--text); }
+  .bars { display: flex; align-items: flex-end; gap: 6px; height: 110px; padding-top: 8px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .bar-fill-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+  .bar-fill { width: 100%; border-radius: 2px; background: var(--surface-alt); border: 1px solid var(--border); transform-origin: bottom; }
+  .bar-fill.highlight { background: var(--accent); border: none; }
+  .bar-label { font-size: 10px; color: var(--text-dim); font-weight: 500; }
+  .bar-label.highlight { color: var(--text); }
+
+  .breakdown-list { display: flex; flex-direction: column; gap: 8px; }
+  .breakdown { padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .breakdown-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .breakdown-meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .breakdown-margin { text-align: right; font-family: var(--num); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .breakdown-margin.success { color: var(--success); }
+  .breakdown-margin.danger { color: var(--danger); }
+  .breakdown-margin-sub { font-size: 10px; color: var(--text-dim); margin-top: 2px; font-weight: 500; }
+
+  /* Maintenance */
+  .pill-row { display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto; padding-bottom: 4px; }
+  .pill-row::-webkit-scrollbar { display: none; }
+  .pill { padding: 8px 14px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--text-dim); white-space: nowrap; cursor: pointer; transition: all 200ms; }
+  .pill.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  .pill:active { transform: scale(0.96); }
+
+  .specs-card { padding: 14px 16px; margin-bottom: 14px; }
+  .specs-label { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+  .specs-grid { display: grid; grid-template-columns: 1fr 1fr; margin-top: 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .specs-cell { padding: 10px 12px; }
+  .specs-cell:nth-child(odd) { border-right: 1px solid var(--border); }
+  .specs-cell:not(:nth-last-child(-n+2)) { border-bottom: 1px solid var(--border); }
+  .specs-cell-label { font-size: 10px; color: var(--text-dim); font-weight: 500; }
+  .specs-cell-val { font-family: var(--num); font-size: 14px; font-weight: 700; color: var(--text); margin-top: 3px; letter-spacing: -0.2px; }
+
+  .ai-btn { padding: 16px; border-radius: var(--radius); background: var(--accent); border: 1px solid var(--accent); display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: transform 120ms, opacity 200ms; }
+  .ai-btn:active { transform: scale(0.99); }
+  .ai-btn.loading { background: var(--surface); border-color: var(--border); }
+  .ai-btn-inner { display: flex; align-items: center; gap: 12px; }
+  .ai-icon { width: 32px; height: 32px; border-radius: 8px; background: rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--bg); }
+  .ai-btn.loading .ai-icon { background: var(--surface-alt); }
+  .ai-spin { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: gt-spin 800ms linear infinite; }
+  .ai-title { font-size: 13px; font-weight: 700; color: var(--bg); }
+  .ai-btn.loading .ai-title { color: var(--text); }
+  .ai-sub { font-size: 11px; color: rgba(0,0,0,0.6); margin-top: 3px; font-weight: 500; }
+  .ai-btn.loading .ai-sub { color: var(--text-dim); }
+  .ai-arrow { font-size: 18px; color: var(--bg); }
+
+  .ai-result { padding: 16px; margin-top: 14px; animation: gt-rise-in 500ms cubic-bezier(.2,.8,.2,1); }
+  .ai-result-title { font-size: 12px; color: var(--accent); font-weight: 700; }
+  .ai-items { margin-top: 10px; display: flex; flex-direction: column; }
+  .ai-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; }
+  .ai-item + .ai-item { border-top: 1px solid var(--border); }
+  .ai-item-label { font-size: 13px; color: var(--text); }
+  .ai-item-label.urgent { color: var(--danger); font-weight: 600; }
+  .ai-item-val { font-family: var(--num); font-size: 12px; font-weight: 600; color: var(--text-dim); }
+
+  /* Sheets / modals */
+  .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity 240ms; z-index: 50; }
+  .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top-left-radius: 20px; border-top-right-radius: 20px; border-top: 1px solid var(--border); transform: translateY(100%); transition: transform 320ms cubic-bezier(.2,.8,.2,1); max-height: 88%; overflow-y: auto; box-shadow: 0 -10px 40px rgba(0,0,0,0.4); z-index: 51; max-width: 480px; margin: 0 auto; }
+  .sheet.open { transform: translateY(0); }
+  .sheet-head { padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .sheet-title { font-size: 14px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
+  .sheet-close { width: 30px; height: 30px; border-radius: 999px; background: var(--surface-alt); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 14px; cursor: pointer; }
+  .sheet-body { padding: 16px 18px 28px; }
+
+  /* Forms */
+  .form-field { margin-bottom: 12px; }
+  .form-field label { display: block; font-size: 11px; color: var(--text-dim); font-weight: 500; margin-bottom: 5px; }
+  .form-field input, .form-field select, .form-field textarea { width: 100%; padding: 11px 13px; background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); outline: none; transition: border-color 200ms; }
+  .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .form-submit { margin-top: 8px; padding: 14px; background: var(--accent); border-radius: var(--radius); text-align: center; font-size: 13px; font-weight: 700; color: var(--bg); cursor: pointer; transition: transform 120ms; width: 100%; border: none; }
+  .form-submit:active { transform: scale(0.98); }
+
+  .scan-hint { padding: 14px; border-radius: var(--radius); background: var(--surface-alt); border: 1.5px dashed var(--border-strong); text-align: center; margin-bottom: 12px; font-size: 12px; color: var(--text-dim); font-weight: 500; }
+
+  /* Detail */
+  .detail-hero { height: 100px; margin-bottom: 8px; }
+  .detail-name { font-size: 24px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .detail-meta { font-size: 12px; color: var(--accent); margin-top: 2px; font-weight: 600; }
+  .detail-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
+  .detail-kpi { padding: 12px; background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .detail-kpi-label { font-size: 10px; color: var(--text-dim); font-weight: 500; }
+  .detail-kpi-val { font-family: var(--num); font-size: 16px; font-weight: 700; margin-top: 3px; font-variant-numeric: tabular-nums; }
+
+  /* Toast */
+  .toasts { position: fixed; bottom: 24px; left: 0; right: 0; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; z-index: 100; max-width: 480px; margin: 0 auto; }
+  .toast { background: var(--surface); color: var(--text); padding: 10px 16px; border-radius: 999px; font-size: 13px; border: 1px solid rgba(132,204,22,0.4); box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: gt-toast 2200ms cubic-bezier(.2,.8,.2,1) forwards; display: flex; align-items: center; gap: 10px; font-weight: 500; }
+  .toast-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .toast.warn .toast-dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+
+  /* Cat colors */
+  .cat-piece { background: #84cc16; }
+  .cat-carros { background: #5b8def; }
+  .cat-elec { background: #fbbf24; }
+  .cat-fluide { background: #34d399; }
+  .cat-outil { background: #a78bfa; }
+  .cat-autre { background: #94a3b8; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 40px 20px; color: var(--text-dim); }
+</style>
 </head>
 <body>
-  <div id="app">
-    <!-- SPLASH -->
-    <div id="splash">
-      <div class="splash-pip"></div>
-      <h1 class="splash-title">GARAGE<span>TRACK</span></h1>
-      <div class="splash-sub">Carnet de bord · v2.4</div>
-    </div>
 
-    <!-- NAV -->
-    <nav id="bottom-nav">
-      <div class="nav-indicator" id="nav-indicator"></div>
-      <button class="nav-item active" data-page="projets" onclick="navigate('projets')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-        <span>Projets</span>
+<div class="app">
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <div class="logo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path d="M5 17h2m10 0h2M3 14l1.5-5a2 2 0 0 1 2-1.5h11a2 2 0 0 1 2 1.5L21 14M3 14v3a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-3M3 14h18"
+            stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="brand-name">GarageTrack</div>
+        <div class="brand-sub">Carnet de bord · v2.4</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="openSheet('Sauvegarde', sheetBackup())" style="width:32px;height:32px;border-radius:8px;background:var(--surface-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </button>
-      <button class="nav-item" data-page="depenses" onclick="navigate('depenses')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        <span>Dépenses</span>
+      <button onclick="openSheet('Connexion Supabase', sheetSupabase())" style="width:32px;height:32px;border-radius:8px;background:var(--surface-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
       </button>
-      <button class="nav-item" data-page="temps" onclick="navigate('temps')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <span>Temps</span>
-      </button>
-      <button class="nav-item" data-page="bilan" onclick="navigate('bilan')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-        <span>Bilan</span>
-      </button>
-      <button class="nav-item" data-page="entretien" onclick="navigate('entretien')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-        <span>Entretien</span>
-      </button>
-    </nav>
-
-    <!-- PAGES -->
-    <div id="backup-banner" style="display:none;background:#1a2a1a;border-bottom:0.5px solid #39d353;padding:10px 16px;align-items:center;gap:10px;position:sticky;top:0;z-index:80">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#39d353" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      <span style="flex:1;font-size:13px;color:#39d353">Pas de sauvegarde depuis 7 jours</span>
-      <button onclick="openBackupModal()" style="background:#39d353;color:#0a0a0a;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer">Sauvegarder</button>
-      <button onclick="dismissBackupBanner()" style="background:none;border:none;color:#39d353;font-size:18px;cursor:pointer;padding:0 4px">x</button>
-    </div>
-    <div id="supabase-status" style="display:none;padding:6px 16px;font-size:11px;font-weight:600;letter-spacing:1px;text-align:center"></div>
-    <main id="main">
-
-      <!-- PROJETS -->
-      <div id="page-projets" class="page active">
-        <div class="page-header">
-          <div class="header-brand">
-            <div class="header-logo">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M5 17h2m10 0h2M3 14l1.5-5a2 2 0 0 1 2-1.5h11a2 2 0 0 1 2 1.5L21 14M3 14v3a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-3M3 14h18" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </div>
-            <div class="header-titles">
-              <div class="page-title">GARAGETRACK</div>
-              <div class="page-subtitle">Carnet de bord · v2.4</div>
-            </div>
-          </div>
-          <div class="header-actions">
-          <button class="btn-icon" onclick="openSupabaseSetup()" style="margin-right:8px" title="Supabase"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></button>
-          <button class="btn-icon" onclick="openBackupModal()" style="margin-right:8px" title="Sauvegarde"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
-          <button class="btn-icon" onclick="openModal('modal-new-projet')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-          </div>
-        </div>
-        <div id="proj-list" class="proj-list"></div>
-        <div id="proj-empty" class="empty-state" style="display:none">
-          <div class="empty-icon">🔧</div>
-          <p>Aucun projet pour l'instant</p>
-          <button class="btn-primary" onclick="openModal('modal-new-projet')">Créer un projet</button>
-        </div>
-      </div>
-
-      <!-- DEPENSES -->
-      <div id="page-depenses" class="page">
-        <div class="page-header">
-          <h2 class="page-title">DÉPENSES</h2>
-          <button class="btn-icon" onclick="openApiKeyModal()" style="margin-right:8px" title="Cle API"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg></button>
-          <button class="btn-icon" onclick="openModal('modal-new-dep')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </button>
-        </div>
-        <div class="proj-selector-wrap">
-          <select id="dep-projet" class="proj-selector" onchange="renderDepenses()"></select>
-        </div>
-        <div id="dep-metrics" class="metrics-row"></div>
-        <div id="dep-chart-wrap" style="margin:0 16px 16px;display:none">
-          <canvas id="dep-chart" height="160"></canvas>
-        </div>
-        <div id="dep-list"></div>
-      </div>
-
-      <!-- TEMPS -->
-      <div id="page-temps" class="page">
-        <div class="page-header">
-          <h2 class="page-title">TEMPS</h2>
-        </div>
-        <div class="proj-selector-wrap">
-          <select id="tps-projet" class="proj-selector" onchange="renderTemps()"></select>
-        </div>
-        <div class="timer-card">
-          <div id="timer-display" class="timer-display">00:00:00</div>
-          <div id="timer-status" class="timer-status">Chrono arrêté</div>
-          <div class="timer-actions">
-            <button id="timer-btn" class="btn-primary" onclick="toggleTimer()">Démarrer</button>
-            <button class="btn-secondary" onclick="resetTimer()">Reset</button>
-          </div>
-          <div class="timer-save" id="timer-save" style="display:none">
-            <input id="tps-desc-timer" class="input" placeholder="Description de la session..." />
-            <button class="btn-accent" onclick="saveTimerSession()">Enregistrer cette session</button>
-          </div>
-        </div>
-        <div style="padding:0 16px;margin-bottom:12px">
-          <button class="btn-secondary full-width" onclick="openModal('modal-new-session')">+ Saisie manuelle</button>
-        </div>
-        <div id="tps-list"></div>
-      </div>
-
-      <!-- ENTRETIEN -->
-      <div id="page-entretien" class="page">
-        <div class="page-header">
-          <h2 class="page-title">ENTRETIEN</h2>
-        </div>
-        <div class="proj-selector-wrap">
-          <select id="entretien-projet" class="proj-selector" onchange="onEntretienProjetChange()"></select>
-        </div>
-
-        <!-- Formulaire specs moteur -->
-        <div class="card" style="margin:12px 16px" id="entretien-form-card">
-          <div class="section-title" style="margin-bottom:12px">Specs du véhicule</div>
-          <div class="row">
-            <div class="col"><label>Motorisation</label><input id="ent-moteur" class="input" placeholder="Ex: 2.0 TDI 150ch" /></div>
-            <div class="col"><label>Code moteur</label><input id="ent-code-moteur" class="input" placeholder="Ex: BKD, N47D20..." /></div>
-          </div>
-          <div style="font-size:11px;color:var(--text3);margin-top:4px">Le code moteur est gravé sur le bloc — donne une réponse précise à l'IA</div>
-          <div class="row" style="margin-top:10px">
-            <div class="col"><label>Kilométrage actuel</label><input id="ent-km" class="input" type="number" placeholder="87000" /></div>
-            <div class="col"><label>Dernière vidange (km)</label><input id="ent-last-vidange" class="input" type="number" placeholder="80000" /></div>
-          </div>
-          <div style="margin-top:12px">
-            <button class="btn-accent full-width" id="btn-entretien-analyze" onclick="analyserEntretien()">Analyser avec l'IA</button>
-          </div>
-        </div>
-
-        <!-- Résultat IA -->
-        <div id="entretien-result" style="margin:0 16px"></div>
-      </div>
-
-      <!-- BILAN -->
-      <div id="page-bilan" class="page">
-        <div class="page-header">
-          <h2 class="page-title">BILAN</h2>
-        </div>
-        <div class="proj-selector-wrap">
-          <select id="bilan-projet" class="proj-selector" onchange="renderBilan()"></select>
-        </div>
-        <div id="bilan-content"></div>
-      </div>
-
-    </main>
-
-    <!-- MODAL NOUVEAU PROJET -->
-    <div id="modal-new-projet" class="modal-overlay" onclick="closeModalOutside(event,'modal-new-projet')">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Nouveau projet</h3>
-          <button class="btn-icon" onclick="closeModal('modal-new-projet')">✕</button>
-        </div>
-        <div class="modal-body">
-          <div class="photo-upload-zone" id="proj-photo-zone" onclick="document.getElementById('proj-photo-input').click()">
-            <img id="proj-photo-preview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px"/>
-            <div id="proj-photo-placeholder">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span>Photo de la voiture</span>
-            </div>
-          </div>
-          <input type="file" id="proj-photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this,'proj-photo-preview','proj-photo-placeholder')"/>
-          <div class="form-group">
-            <label>Nom / modèle *</label>
-            <input id="np-nom" class="input" placeholder="Ex: Golf GTI mk5" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Immatriculation</label>
-              <input id="np-immat" class="input" placeholder="AB-123-CD" />
-            </div>
-            <div class="form-group">
-              <label>Année</label>
-              <input id="np-annee" class="input" type="number" placeholder="2005" />
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Prix d'achat (€)</label>
-              <input id="np-achat" class="input" type="number" placeholder="1200" />
-            </div>
-            <div class="form-group">
-              <label>Budget pièces (€)</label>
-              <input id="np-budget" class="input" type="number" placeholder="2000" />
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Prix de revente visé (€)</label>
-            <input id="np-revente" class="input" type="number" placeholder="3500" />
-          </div>
-          <div class="form-group">
-            <label>Notes</label>
-            <textarea id="np-notes" class="input textarea" placeholder="Travaux prévus, état général..."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-primary full-width" onclick="addProjet()">Créer le projet</button>
-        </div>
+      <div class="sync-pill" onclick="openSheet('Connexion Supabase', sheetSupabase())">
+        <div class="sync-dot"></div>
+        <div class="sync-text">Sync</div>
       </div>
     </div>
+  </header>
 
-    <!-- MODAL DETAIL PROJET -->
-    <div id="modal-detail-projet" class="modal-overlay" onclick="closeModalOutside(event,'modal-detail-projet')">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 id="detail-titre">Projet</h3>
-          <button class="btn-icon" onclick="closeModal('modal-detail-projet')">✕</button>
-        </div>
-        <div class="modal-body" id="detail-body"></div>
-        <div class="modal-footer" id="detail-footer"></div>
-      </div>
-    </div>
+  <!-- Tabs -->
+  <nav class="tabs" id="tabs">
+    <button class="tab active" data-tab="projects"><span class="tab-icon">◧</span><span>Projets</span></button>
+    <button class="tab" data-tab="expenses"><span class="tab-icon">€</span><span>Dépenses</span></button>
+    <button class="tab" data-tab="time"><span class="tab-icon">◷</span><span>Temps</span></button>
+    <button class="tab" data-tab="bilan"><span class="tab-icon">◢</span><span>Bilan</span></button>
+    <button class="tab" data-tab="entretien"><span class="tab-icon">⚙</span><span>Entretien</span></button>
+    <div class="tab-indicator" id="tabIndicator"></div>
+  </nav>
 
-    <!-- MODAL NOUVELLE DEPENSE -->
-    <div id="modal-new-dep" class="modal-overlay" onclick="closeModalOutside(event,'modal-new-dep')">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Nouvelle dépense</h3>
-          <button class="btn-icon" onclick="closeModal('modal-new-dep')">✕</button>
-        </div>
-        <div class="modal-body">
-          <div class="photo-upload-zone small" id="dep-photo-zone" onclick="document.getElementById('dep-photo-input').click()">
-            <img id="dep-photo-preview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:8px"/>
-            <div id="dep-photo-placeholder">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span>Photo facture</span>
-            </div>
-          </div>
-          <input type="file" id="dep-photo-input" accept="image/*" multiple style="display:none" onchange="previewMultiPhoto(this)"/>
-          <button id="btn-analyser" class="btn-accent" onclick="analyserFacture()" style="margin-top:8px">Analyser avec l'IA</button>
-          <div class="form-group">
-            <label>Description *</label>
-            <input id="dep-desc" class="input" placeholder="Plaquettes de frein avant..." />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Montant (€) *</label>
-              <input id="dep-montant" class="input" type="number" step="0.01" placeholder="0.00" />
-            </div>
-            <div class="form-group">
-              <label>Date</label>
-              <input id="dep-date" class="input" type="date" />
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Fournisseur</label>
-              <input id="dep-fourn" class="input" placeholder="GSF, LKQ, eBay..." />
-            </div>
-            <div class="form-group">
-              <label>Catégorie</label>
-              <select id="dep-cat" class="input">
-                <option>Pièces mécaniques</option>
-                <option>Carrosserie</option>
-                <option>Électrique</option>
-                <option>Fluides / consommables</option>
-                <option>Outillage</option>
-                <option>Autre</option>
-              </select>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-primary full-width" onclick="addDepense()">Ajouter la dépense</button>
-        </div>
-      </div>
-    </div>
+  <!-- Main content -->
+  <main class="main" id="main"></main>
+</div>
 
-    <!-- MODAL SESSION MANUELLE -->
-    <div id="modal-new-session" class="modal-overlay" onclick="closeModalOutside(event,'modal-new-session')">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Saisie manuelle</h3>
-          <button class="btn-icon" onclick="closeModal('modal-new-session')">✕</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Description</label>
-            <input id="tps-desc" class="input" placeholder="Dépose moteur, vidange..." />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Durée (heures)</label>
-              <input id="tps-duree" class="input" type="number" step="0.25" placeholder="1.5" />
-            </div>
-            <div class="form-group">
-              <label>Date</label>
-              <input id="tps-date" class="input" type="date" />
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Checklist des tâches effectuées</label>
-            <div id="task-quick-list"></div>
-            <div class="form-row" style="margin-top:8px">
-              <input id="new-task-input" class="input" placeholder="Ajouter une tâche..." style="flex:1"/>
-              <button class="btn-secondary" onclick="addQuickTask()">+</button>
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-primary full-width" onclick="addSession()">Enregistrer</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="modal-api-key" class="modal-overlay" onclick="closeModalOutside(event,'modal-api-key')">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Cle API Anthropic</h3>
-          <button class="btn-icon" onclick="closeModal('modal-api-key')">x</button>
-        </div>
-        <div class="modal-body">
-          <div style="font-size:13px;color:var(--text2);margin-bottom:12px;line-height:1.6">
-            Ta cle est stockee uniquement sur ton iPhone.<br><br>
-            Pour en creer une : <strong>platform.anthropic.com</strong> puis API Keys puis Create Key
-          </div>
-          <div class="form-group">
-            <label>Cle API</label>
-            <input id="api-key-input" class="input" type="password" placeholder="sk-ant-api03-..." autocomplete="off" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-primary full-width" onclick="saveApiKeyFromModal()">Enregistrer</button>
-        </div>
-      </div>
-    </div>
-    <div id="modal-backup" class="modal-overlay" onclick="closeModalOutside(event,'modal-backup')">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Sauvegarde</h3>
-          <button class="btn-icon" onclick="closeModal('modal-backup')">x</button>
-        </div>
-        <div class="modal-body">
-          <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">
-            Derniere sauvegarde : <strong id="backup-last-date">—</strong>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:10px">
-            <button class="btn-primary full-width" onclick="exportBackup()">
-              Telecharger la sauvegarde (.json)
-            </button>
-            <button class="btn-secondary full-width" onclick="importBackup()">
-              Restaurer depuis un fichier
-            </button>
-          </div>
-          <div style="font-size:12px;color:var(--text3);margin-top:14px;line-height:1.6">
-            Le fichier JSON contient tous tes projets, depenses et sessions. Stocke-le dans iCloud ou envoie-le par email pour ne pas le perdre.
-          </div>
-        </div>
-      </div>
-    </div>
-    <div id="modal-multi-product" class="modal-overlay" onclick="closeModalOutside(event,'modal-multi-product')">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 id="multi-product-count">0</h3>
-          <button class="btn-icon" onclick="closeModal('modal-multi-product')">x</button>
-        </div>
-        <div class="modal-body">
-          <div style="font-size:13px;color:var(--text2);margin-bottom:12px">Verifie et modifie chaque ligne avant de confirmer.</div>
-          <div id="multi-product-list"></div>
-        </div>
-        <div class="modal-footer">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <span style="font-size:13px;color:var(--text3)">Total</span>
-            <span style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:600;color:var(--accent)" id="multi-product-total">0 EUR</span>
-          </div>
-          <button class="btn-primary full-width" onclick="confirmMultiProducts()">Ajouter toutes les depenses</button>
-        </div>
-      </div>
-    </div>
-    <div id="modal-edit-projet" class="modal-overlay" onclick="closeModalOutside(event,'modal-edit-projet')">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Modifier le projet</h3>
-          <button class="btn-icon" onclick="closeModal('modal-edit-projet')">x</button>
-        </div>
-        <div class="modal-body">
-          <input type="hidden" id="edit-proj-id" />
-          <div class="photo-upload-zone" id="edit-proj-photo-zone" onclick="document.getElementById('edit-proj-photo-input').click()">
-            <img id="edit-proj-photo-preview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px"/>
-            <div id="edit-proj-photo-placeholder">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span>Changer la photo</span>
-            </div>
-          </div>
-          <input type="file" id="edit-proj-photo-input" accept="image/*" style="display:none" onchange="previewPhoto(this,'edit-proj-photo-preview','edit-proj-photo-placeholder')"/>
-          <div class="form-group">
-            <label>Nom / modèle *</label>
-            <input id="edit-np-nom" class="input" placeholder="Ex: Golf GTI mk5" />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Immatriculation</label>
-              <input id="edit-np-immat" class="input" placeholder="AB-123-CD" />
-            </div>
-            <div class="form-group">
-              <label>Année</label>
-              <input id="edit-np-annee" class="input" type="number" placeholder="2005" />
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Prix d'achat (€)</label>
-              <input id="edit-np-achat" class="input" type="number" placeholder="1200" />
-            </div>
-            <div class="form-group">
-              <label>Budget pièces (€)</label>
-              <input id="edit-np-budget" class="input" type="number" placeholder="2000" />
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Prix de revente visé (€)</label>
-            <input id="edit-np-revente" class="input" type="number" placeholder="3500" />
-          </div>
-          <div class="form-group">
-            <label>Notes</label>
-            <textarea id="edit-np-notes" class="input textarea" placeholder="Travaux prévus, état général..."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-primary full-width" onclick="saveEditProjet()">Enregistrer les modifications</button>
-        </div>
-      </div>
-    </div>
-    <div id="modal-supabase-setup" class="modal-overlay" onclick="closeModalOutside(event,'modal-supabase-setup')">
-      <div class="modal">
-        <div class="modal-header">
-          <h3>Connexion Supabase</h3>
-          <button class="btn-icon" onclick="closeModal('modal-supabase-setup')">x</button>
-        </div>
-        <div class="modal-body">
-          <div style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">
-            Connecte ton app a Supabase pour ne plus jamais perdre tes donnees.<br><br>
-            Sur <strong>supabase.com</strong> → ton projet → <strong>Settings → API</strong> → copie l'URL et la cle <strong>anon public</strong>.
-          </div>
-          <div class="form-group">
-            <label>Project URL</label>
-            <input id="sb-url-input" class="input" placeholder="https://xxxx.supabase.co" autocomplete="off" />
-          </div>
-          <div class="form-group">
-            <label>Anon public key</label>
-            <input id="sb-key-input" class="input" type="password" placeholder="eyJhbGci..." autocomplete="off" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn-primary full-width" onclick="saveSupabaseConfig()">Connecter</button>
-          <button class="btn-accent full-width" style="margin-top:8px" onclick="closeModal('modal-supabase-setup');importBackupToSupabase()">Importer ma sauvegarde JSON</button>
-        </div>
-      </div>
-    </div>
-    <!-- TOAST -->
-    <div id="toast" class="toast"></div>
+<!-- Sheets -->
+<div class="sheet-backdrop" id="backdrop"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-head">
+    <div class="sheet-title" id="sheetTitle">Titre</div>
+    <button class="sheet-close" id="sheetClose">✕</button>
   </div>
+  <div class="sheet-body" id="sheetBody"></div>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="app.js"></script>
+<!-- Toasts -->
+<div class="toasts" id="toasts"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════════════════
+const SUPABASE_URL_KEY = 'gt_sb_url';
+const SUPABASE_KEY_KEY = 'gt_sb_key';
+const API_KEY_STORE = 'garagetrack_apikey';
+const LOCAL_CACHE = 'garagetrack_cache_v1';
+const BACKUP_DATE_KEY = 'garagetrack_last_backup';
+const WORKER_URL = 'https://restless-star-0f7c.paulvillemain12.workers.dev';
+
+function getSupabaseUrl() { return localStorage.getItem(SUPABASE_URL_KEY) || ''; }
+function getSupabaseKey() { return localStorage.getItem(SUPABASE_KEY_KEY) || ''; }
+function getApiKey() { return localStorage.getItem(API_KEY_STORE) || ''; }
+function saveApiKey(k) { localStorage.setItem(API_KEY_STORE, k); }
+
+let supabaseReady = false;
+
+// ════════════════════════════════════════════════════════════════════════
+// SUPABASE
+// ════════════════════════════════════════════════════════════════════════
+async function sbFetch(path, options = {}) {
+  const url = getSupabaseUrl();
+  const key = getSupabaseKey();
+  if (!url || !key) return null;
+  const res = await fetch(url + '/rest/v1/' + path, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': key,
+      'Authorization': 'Bearer ' + key,
+      'Prefer': options.prefer || 'return=representation',
+      ...(options.headers || {})
+    }
+  });
+  if (!res.ok) { console.error('Supabase error:', res.status); return null; }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+async function loadFromSupabase() {
+  try {
+    const [projets, depenses, sessions] = await Promise.all([
+      sbFetch('projets?order=created_at.asc'),
+      sbFetch('depenses?order=created_at.asc'),
+      sbFetch('sessions?order=created_at.asc')
+    ]);
+    if (projets === null) return false;
+    // Map Supabase columns to app format
+    PROJECTS.length = 0;
+    (projets || []).forEach(p => {
+      const deps = (depenses || []).filter(d => d.projet_id === p.id).map(d => ({
+        id: d.id, desc: d.description || '', cat: d.cat || 'Autre',
+        amount: d.montant || 0, date: d.date_achat || '', vendor: d.fourn || '',
+        photo: d.photo || null
+      }));
+      const sess = (sessions || []).filter(s => s.projet_id === p.id).map(s => ({
+        id: s.id, desc: s.description || '', hours: s.duree || 0,
+        date: s.date_session || '', tasks: JSON.parse(s.tasks || '[]')
+      }));
+      PROJECTS.push({
+        id: p.id, name: p.nom || '', plate: p.immat || '', year: p.annee || '',
+        purchase: p.achat || 0, budget: p.budget || 0, target: p.revente || 0,
+        km: 0, color: '#84cc16', progress: 0, photo: p.photo || null,
+        notes: p.notes || '', expenses: deps, sessions: sess
+      });
+    });
+    saveLocal();
+    return true;
+  } catch(e) { console.error('Load error:', e); return false; }
+}
+
+function saveLocal() {
+  try { localStorage.setItem(LOCAL_CACHE, JSON.stringify(PROJECTS)); } catch(e) {}
+}
+
+function loadLocal() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LOCAL_CACHE) || '[]');
+    if (d.length) { PROJECTS.length = 0; d.forEach(p => PROJECTS.push(p)); return true; }
+    return false;
+  } catch { return false; }
+}
+
+async function sbSaveProject(p) {
+  if (!supabaseReady) return;
+  await sbFetch('projets', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+    id: p.id, nom: p.name, immat: p.plate, annee: p.year ? String(p.year) : '',
+    achat: p.purchase, budget: p.budget, revente: p.target,
+    notes: p.notes || '', photo: p.photo || null, created_at: new Date().toISOString()
+  })});
+}
+
+async function sbDeleteProject(id) {
+  if (!supabaseReady) return;
+  await sbFetch('projets?id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
+  await sbFetch('depenses?projet_id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
+  await sbFetch('sessions?projet_id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
+}
+
+async function sbSaveExpense(e, projetId) {
+  if (!supabaseReady) return;
+  await sbFetch('depenses', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+    id: e.id, projet_id: projetId, description: e.desc, fourn: e.vendor || '',
+    montant: e.amount, cat: e.cat, date_achat: e.date, photo: e.photo || null
+  })});
+}
+
+async function sbSaveSession(s, projetId) {
+  if (!supabaseReady) return;
+  await sbFetch('sessions', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+    id: s.id, projet_id: projetId, description: s.desc, duree: s.hours,
+    date_session: s.date, tasks: JSON.stringify(s.tasks || [])
+  })});
+}
+
+async function sbDeleteExpense(id) {
+  if (!supabaseReady) return;
+  await sbFetch('depenses?id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
+}
+
+async function sbDeleteSession(id) {
+  if (!supabaseReady) return;
+  await sbFetch('sessions?id=eq.' + id, { method: 'DELETE', prefer: 'return=minimal' });
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// DATA
+// ════════════════════════════════════════════════════════════════════════
+const PROJECTS = [];
+
+const CATEGORIES = ['Pièces mécaniques', 'Carrosserie', 'Électrique', 'Fluides / consommables', 'Outillage', 'Autre'];
+const CAT_CLASS = {
+  'Pièces mécaniques': 'cat-piece',
+  'Carrosserie': 'cat-carros',
+  'Électrique': 'cat-elec',
+  'Fluides / consommables': 'cat-fluide',
+  'Outillage': 'cat-outil',
+  'Autre': 'cat-autre',
+};
+const CAT_COLORS = {
+  'Pièces mécaniques': '#84cc16',
+  'Carrosserie': '#5b8def',
+  'Électrique': '#fbbf24',
+  'Fluides / consommables': '#34d399',
+  'Outillage': '#a78bfa',
+  'Autre': '#94a3b8',
+};
+
+// ════════════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════════════
+const state = {
+  tab: 'projects',
+  activeProjectId: PROJECTS[0].id,
+  // chrono
+  running: false,
+  ms: 0,
+  rafId: null,
+  lastT: 0,
+  // ai
+  aiLoading: false,
+  aiResult: null,
+};
+
+// ════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════════════════
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const fmtEur = (v) => Math.round(v).toLocaleString('fr-FR') + ' €';
+const fmtNum = (v, d = 0) => Number(v).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtKm = (v) => Math.round(v).toLocaleString('fr-FR') + ' km';
+const fmtDate = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+const fmtDateShort = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+const fmtTime = (ms) => {
+  const s = Math.floor(ms / 1000);
+  const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+  const ss = String(s % 60).padStart(2, '0');
+  const cs = String(Math.floor((ms % 1000) / 10)).padStart(2, '0');
+  return { hh, mm, ss, cs };
+};
+
+const projectTotal = (p) => p.expenses.reduce((s, e) => s + e.amount, 0);
+const projectHours = (p) => p.sessions.reduce((s, e) => s + e.hours, 0);
+const projectMargin = (p) => p.target - p.purchase - projectTotal(p);
+const projectById = (id) => PROJECTS.find(p => p.id === id);
+
+// Toast
+function toast(msg, kind = 'success') {
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind !== 'success' ? ' ' + kind : '');
+  el.innerHTML = `<div class="toast-dot"></div><span>${msg}</span>`;
+  $('#toasts').appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
+// Ripple effect
+function attachRipple(el) {
+  el.addEventListener('pointerdown', (e) => {
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const r = document.createElement('span');
+    r.className = 'ripple';
+    r.style.left = x + 'px';
+    r.style.top = y + 'px';
+    r.style.width = '10px';
+    r.style.height = '10px';
+    el.appendChild(r);
+    setTimeout(() => r.remove(), 600);
+  });
+}
+
+// Animated number counter
+function animateNumber(el, from, to, duration = 700, format = (v) => Math.round(v).toString()) {
+  const start = performance.now();
+  function tick(t) {
+    const k = Math.min(1, (t - start) / duration);
+    const eased = 1 - Math.pow(1 - k, 3);
+    el.textContent = format(from + (to - from) * eased);
+    if (k < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// Animate any element with [data-count-to]
+function animateCounters(root) {
+  $$('[data-count-to]', root).forEach(el => {
+    const to = parseFloat(el.dataset.countTo);
+    const fmt = el.dataset.countFmt || 'num';
+    let formatter;
+    if (fmt === 'eur') formatter = fmtEur;
+    else if (fmt === 'eur-sign') formatter = (v) => (v >= 0 ? '+' : '') + fmtEur(v);
+    else if (fmt === 'h1') formatter = (v) => fmtNum(v, 1) + ' h';
+    else if (fmt === 'pct') formatter = (v) => Math.round(v) + ' %';
+    else if (fmt === 'pct1') formatter = (v) => fmtNum(v, 1) + ' %';
+    else formatter = (v) => Math.round(v).toString();
+    animateNumber(el, 0, to, 800, formatter);
+  });
+}
+
+// Car silhouette SVG
+function carSvg(color) {
+  return `<svg viewBox="0 0 200 80" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block">
+    <defs><linearGradient id="g${color.replace('#','')}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${color}" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="${color}" stop-opacity="0.55"/>
+    </linearGradient></defs>
+    <path d="M 20 58 L 28 44 L 58 32 L 92 28 L 130 30 L 158 36 L 178 44 L 184 58 L 178 62 L 22 62 Z" fill="url(#g${color.replace('#','')})" stroke="rgba(255,255,255,0.12)" stroke-width="0.8"/>
+    <path d="M 60 34 L 92 30 L 128 32 L 152 38 L 148 44 L 64 44 Z" fill="rgba(0,0,0,0.55)"/>
+    <line x1="106" y1="30" x2="106" y2="44" stroke="#000" stroke-width="0.8"/>
+    <circle cx="56" cy="62" r="11" fill="#1a1a1a" stroke="#84cc16" stroke-width="0.6"/>
+    <circle cx="56" cy="62" r="5" fill="#2a2a2a"/>
+    <circle cx="148" cy="62" r="11" fill="#1a1a1a" stroke="#84cc16" stroke-width="0.6"/>
+    <circle cx="148" cy="62" r="5" fill="#2a2a2a"/>
+    <line x1="22" y1="52" x2="180" y2="52" stroke="rgba(255,255,255,0.08)" stroke-width="0.6"/>
+  </svg>`;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// SCREENS
+// ════════════════════════════════════════════════════════════════════════
+
+function renderProjects() {
+  const totalAll = PROJECTS.reduce((s, p) => s + projectTotal(p), 0);
+  const html = `
+    <div class="screen">
+      <div class="stat-grid">
+        <div class="card stat">
+          <div class="stat-label">Projets actifs</div>
+          <div class="stat-value" data-count-to="${PROJECTS.length}" data-count-fmt="pad2">0</div>
+        </div>
+        <div class="card stat">
+          <div class="stat-label">Total dépensé</div>
+          <div class="stat-value accent" data-count-to="${totalAll}" data-count-fmt="eur">0</div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <h2>Projets <span class="count">· ${PROJECTS.length}</span></h2>
+        <button class="add-btn" data-action="new-project">+ Nouveau</button>
+      </div>
+
+      <div class="project-list">
+        ${PROJECTS.map((p, i) => {
+          const spent = projectTotal(p);
+          const hours = projectHours(p);
+          const margin = projectMargin(p);
+          const budgetPct = Math.min(1, spent / p.budget);
+          return `
+          <div class="project-card" data-action="open-project" data-id="${p.id}" style="animation: gt-rise-in 500ms cubic-bezier(.2,.8,.2,1) ${i * 80}ms both">
+            <div class="project-hero">
+              <div class="project-head">
+                <div style="min-width:0;flex:1">
+                  <div class="project-meta">#${String(i+1).padStart(3,'0')} · ${p.year}</div>
+                  <div class="project-name">${p.name}</div>
+                  <div class="project-plate">${p.plate}</div>
+                </div>
+                <div class="progress-badge">${Math.round(p.progress*100)}%</div>
+              </div>
+              <div class="car-illu">${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;display:block">` : carSvg(p.color)}</div>
+            </div>
+            <div class="stats-row">
+              <div>
+                <div class="label">Dépensé</div>
+                <div class="val" data-count-to="${spent}" data-count-fmt="eur">0</div>
+              </div>
+              <div>
+                <div class="label">Temps</div>
+                <div class="val" data-count-to="${hours}" data-count-fmt="h1">0</div>
+              </div>
+              <div>
+                <div class="label">Marge</div>
+                <div class="val ${margin>0?'success':'danger'}" data-count-to="${margin}" data-count-fmt="eur-sign">0</div>
+              </div>
+            </div>
+            <div class="budget-row">
+              <div class="budget-head"><span>Budget</span><span class="v">${fmtEur(spent)} / ${fmtEur(p.budget)}</span></div>
+              <div class="budget-bar"><div class="budget-fill ${budgetPct>0.9?'over':''}" style="width:0%" data-bar-to="${budgetPct*100}"></div></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+
+      <button class="add-card" data-action="new-project">+ Ajouter un projet</button>
+    </div>
+  `;
+  $('#main').innerHTML = html;
+  setTimeout(() => {
+    animateCounters($('#main'));
+    $$('[data-bar-to]').forEach(el => {
+      requestAnimationFrame(() => { el.style.width = el.dataset.barTo + '%'; });
+    });
+  }, 30);
+}
+
+function renderExpenses() {
+  const all = PROJECTS.flatMap(p => p.expenses.map(e => ({...e, project: p.name, projectId: p.id})));
+  all.sort((a,b) => b.date.localeCompare(a.date));
+  const total = all.reduce((s, e) => s + e.amount, 0);
+
+  const byDate = {};
+  all.forEach(e => { (byDate[e.date] = byDate[e.date] || []).push(e); });
+
+  const catTotals = CATEGORIES.map(c => ({
+    label: c,
+    value: all.filter(e => e.cat === c).reduce((s, e) => s + e.amount, 0),
+    color: CAT_COLORS[c],
+  })).filter(c => c.value > 0);
+  const catMax = catTotals.reduce((s, c) => s + c.value, 0) || 1;
+
+  const html = `
+    <div class="screen">
+      <div class="card total-card">
+        <div class="total-label">Dépenses cumulées</div>
+        <div class="total-value" data-count-to="${total}" data-count-fmt="eur">0</div>
+        <div class="total-sub">${all.length} entrées · ${PROJECTS.length} projets</div>
+        <div class="cat-bars">
+          ${catTotals.map((c, i) => `
+            <div class="cat-row">
+              <div class="cat-head"><span>${c.label}</span><span class="v">${fmtEur(c.value)}</span></div>
+              <div class="cat-bar"><div class="cat-fill" style="width:${(c.value/catMax)*100}%; background:${c.color}; animation-delay:${i*80}ms"></div></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="section-title">
+        <h2>Historique</h2>
+        <button class="add-btn" data-action="new-expense">+ Dépense</button>
+      </div>
+
+      ${Object.entries(byDate).map(([date, items], gi) => `
+        <div class="day-group">
+          <div class="day-label">${fmtDate(date).toUpperCase()}</div>
+          <div class="expense-list">
+            ${items.map((e, i) => `
+              <div class="expense" style="animation: gt-fade-in 400ms ease ${gi*60+i*30}ms both">
+                <div class="expense-bar ${CAT_CLASS[e.cat] || 'cat-autre'}"></div>
+                <div class="expense-body">
+                  <div class="expense-desc">${e.desc}</div>
+                  <div class="expense-meta">${e.project}${e.vendor ? ' · ' + e.vendor : ''} · ${e.cat}</div>
+                </div>
+                <div class="expense-amount">${fmtEur(e.amount)}</div>
+                <button data-action="delete-expense" data-pid="${e.projectId}" data-eid="${e.id}" style="padding:4px 6px;color:var(--text-mute);font-size:12px;flex-shrink:0">✕</button>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  $('#main').innerHTML = html;
+  setTimeout(() => animateCounters($('#main')), 30);
+}
+
+function renderTime() {
+  const project = projectById(state.activeProjectId);
+  const totalHours = projectHours(project);
+  const t = fmtTime(state.ms);
+  const seconds = state.ms / 1000;
+  const angle = (seconds % 60) * 6;
+  const dotX = Math.cos((angle - 90) * Math.PI / 180) * 50;
+  const dotY = Math.sin((angle - 90) * Math.PI / 180) * 12;
+
+  const html = `
+    <div class="screen">
+      <div class="project-selector">
+        <div class="ps-current">
+          <div class="ps-label">Projet en cours</div>
+          <div class="ps-name">${project.name}</div>
+        </div>
+        <div class="ps-chips">
+          ${PROJECTS.map(p => `
+            <button class="ps-chip ${p.id === project.id ? 'active' : ''}" data-action="select-project" data-id="${p.id}">${p.name.split(' ')[0].slice(0,2).toUpperCase()}</button>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card chrono-card">
+        <div class="chrono-ring1"></div>
+        <div class="chrono-ring2"></div>
+        <div class="chrono-status ${state.running ? 'running' : ''}">
+          <div class="chrono-status-dot"></div>
+          <div class="chrono-status-text">${state.running ? 'Enregistrement' : 'En pause'}</div>
+        </div>
+        <div class="chrono-display">
+          <span class="digit" id="chronoH">${t.hh}</span><span class="sep">:</span><span class="digit" id="chronoM">${t.mm}</span><span class="sep">:</span><span class="digit" id="chronoS">${t.ss}</span><span class="cs" id="chronoCs">.${t.cs}</span>
+        </div>
+        <div class="chrono-sub">Session courante · ${project.name}</div>
+        <div class="chrono-dial">
+          <svg width="120" height="40" viewBox="-60 -20 120 40">
+            ${Array.from({length: 30}).map((_, i) => {
+              const a = (i / 30) * Math.PI * 2;
+              const x1 = Math.cos(a) * 50, y1 = Math.sin(a) * 12;
+              const x2 = Math.cos(a) * 56, y2 = Math.sin(a) * 14;
+              return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(255,255,255,0.07)" stroke-width="0.7"/>`;
+            }).join('')}
+            <circle id="chronoNeedle" r="3" cx="${dotX}" cy="${dotY}" fill="#84cc16" style="filter: drop-shadow(0 0 6px #84cc16)"/>
+          </svg>
+        </div>
+        <div class="chrono-controls">
+          <button class="btn btn-primary ${state.running ? 'running' : ''}" data-action="toggle-chrono">${state.running ? '◼ Pause' : '▶ Démarrer'}</button>
+          <button class="btn btn-secondary" data-action="reset-chrono">↺ Reset</button>
+        </div>
+        <button class="btn-ghost" data-action="save-session">+ Enregistrer la session</button>
+      </div>
+
+      <div class="section-title" style="margin-top:18px">
+        <h2>Sessions <span class="count">· ${project.name}</span></h2>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="count" style="font-family:var(--num);font-weight:700;color:var(--text)">${fmtNum(totalHours, 1)} h</span>
+          <button class="add-btn" data-action="new-session">+ Session</button>
+        </div>
+      </div>
+      <div class="session-list">
+        ${project.sessions.map(s => `
+          <div class="session">
+            <div class="session-date">${fmtDateShort(s.date).toUpperCase()}</div>
+            <div class="session-desc">${s.desc}</div>
+            <div class="session-hours">${fmtNum(s.hours, 2)} h</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  $('#main').innerHTML = html;
+}
+
+// Live update only the chrono display (no full re-render — keeps animations smooth)
+function updateChronoDisplay() {
+  if (state.tab !== 'time') return;
+  const t = fmtTime(state.ms);
+  const h = $('#chronoH'), m = $('#chronoM'), s = $('#chronoS'), cs = $('#chronoCs');
+  if (h) h.textContent = t.hh;
+  if (m) m.textContent = t.mm;
+  if (s) s.textContent = t.ss;
+  if (cs) cs.textContent = '.' + t.cs;
+  const needle = $('#chronoNeedle');
+  if (needle) {
+    const seconds = state.ms / 1000;
+    const angle = (seconds % 60) * 6;
+    needle.setAttribute('cx', Math.cos((angle - 90) * Math.PI / 180) * 50);
+    needle.setAttribute('cy', Math.sin((angle - 90) * Math.PI / 180) * 12);
+  }
+}
+
+function startChronoLoop() {
+  if (state.rafId) return;
+  state.lastT = performance.now();
+  function tick(t) {
+    if (!state.running) { state.rafId = null; return; }
+    state.ms += t - state.lastT;
+    state.lastT = t;
+    updateChronoDisplay();
+    state.rafId = requestAnimationFrame(tick);
+  }
+  state.rafId = requestAnimationFrame(tick);
+}
+
+function renderBilan() {
+  const totalSpent = PROJECTS.reduce((s, p) => s + projectTotal(p), 0);
+  const totalHours = PROJECTS.reduce((s, p) => s + projectHours(p), 0);
+  const totalPurchase = PROJECTS.reduce((s, p) => s + p.purchase, 0);
+  const totalTarget = PROJECTS.reduce((s, p) => s + p.target, 0);
+  const projectedMargin = totalTarget - totalPurchase - totalSpent;
+  const roi = totalSpent ? (projectedMargin / (totalPurchase + totalSpent)) * 100 : 0;
+  const monthly = [
+    { m: 'Nov', v: 220 }, { m: 'Déc', v: 480 }, { m: 'Jan', v: 320 },
+    { m: 'Fév', v: 740 }, { m: 'Mar', v: 1120 }, { m: 'Avr', v: 1750, hl: true },
+  ];
+  const monthMax = Math.max(...monthly.map(m => m.v));
+
+  const html = `
+    <div class="screen">
+      <div class="card roi-card">
+        <div class="roi-label">Marge prévue · global</div>
+        <div class="roi-value ${projectedMargin>0?'success':'danger'}" data-count-to="${projectedMargin}" data-count-fmt="eur-sign">0</div>
+        <div class="roi-sub">ROI estimé : <strong data-count-to="${roi}" data-count-fmt="pct1">0</strong></div>
+        <div class="kpi-grid">
+          <div class="kpi"><div class="kpi-label">Achat</div><div class="kpi-val" data-count-to="${totalPurchase}" data-count-fmt="eur">0</div></div>
+          <div class="kpi"><div class="kpi-label">Dépenses</div><div class="kpi-val accent" data-count-to="${totalSpent}" data-count-fmt="eur">0</div></div>
+          <div class="kpi"><div class="kpi-label">Revente</div><div class="kpi-val" data-count-to="${totalTarget}" data-count-fmt="eur">0</div></div>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-head">
+          <span class="chart-title">Dépenses · 6 mois</span>
+          <span class="chart-total">${fmtEur(monthly.reduce((s,m) => s + m.v, 0))}</span>
+        </div>
+        <div class="bars">
+          ${monthly.map((d, i) => `
+            <div class="bar-col">
+              <div class="bar-fill-wrap">
+                <div class="bar-fill ${d.hl ? 'highlight' : ''}" style="height:${(d.v/monthMax)*100}%; animation: gt-rise 700ms cubic-bezier(.2,.8,.2,1) ${i*50}ms both"></div>
+              </div>
+              <div class="bar-label ${d.hl ? 'highlight' : ''}">${d.m}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-head">
+          <span class="chart-title">Temps cumulé</span>
+          <span class="chart-total text" data-count-to="${totalHours}" data-count-fmt="h1">0</span>
+        </div>
+        <svg viewBox="0 0 100 50" preserveAspectRatio="none" style="width:100%;height:50px;display:block">
+          <defs><linearGradient id="sparkArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#84cc16" stop-opacity="0.3"/><stop offset="100%" stop-color="#84cc16" stop-opacity="0"/></linearGradient></defs>
+          ${(() => {
+            const data = [2,5,8,14,18,24,30,38,44,52,58,67];
+            const max = Math.max(...data);
+            const pts = data.map((v, i) => `${(i/(data.length-1))*100},${50-(v/max)*46-2}`).join(' ');
+            return `<polyline points="0,50 ${pts} 100,50" fill="url(#sparkArea)"/>
+                    <polyline points="${pts}" fill="none" stroke="#84cc16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+          })()}
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-top:6px;font-weight:500">
+          <span>12 semaines</span>
+          <span>+9 h cette semaine</span>
+        </div>
+      </div>
+
+      <h2 style="font-size:14px;color:var(--text);font-weight:600;margin:0 0 10px;letter-spacing:-0.2px">Détail par projet</h2>
+      <div class="breakdown-list">
+        ${PROJECTS.map((p, i) => {
+          const spent = projectTotal(p);
+          const margin = projectMargin(p);
+          return `
+            <div class="breakdown" style="animation: gt-fade-in 400ms ease ${i*80}ms both">
+              <div>
+                <div class="breakdown-name">${p.name}</div>
+                <div class="breakdown-meta">${fmtEur(spent)} dépensés · ${p.expenses.length} entrées</div>
+              </div>
+              <div>
+                <div class="breakdown-margin ${margin>0?'success':'danger'}">${margin>0?'+':''}${fmtEur(margin)}</div>
+                <div class="breakdown-margin-sub">marge prévue</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  $('#main').innerHTML = html;
+  setTimeout(() => animateCounters($('#main')), 30);
+}
+
+function renderEntretien() {
+  const project = projectById(state.activeProjectId);
+  if (!project) { $('#main').innerHTML = '<div class="screen"><div class="empty">Aucun projet</div></div>'; return; }
+  const saved = JSON.parse(localStorage.getItem('gt_entretien_' + project.id) || '{}');
+  const r = state.aiResult || saved.result;
+  const statutColor = { urgent: 'var(--danger)', bientot: 'var(--warn)', ok: 'var(--success)' };
+
+  const resultHtml = r ? `
+    <div class="card ai-result" style="margin-top:14px">
+      <div class="ai-result-title">● Rapport IA · ${project.name}</div>
+      ${r.huile ? `
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--text-dim);font-weight:500;margin-bottom:8px">Huile moteur</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="padding:10px;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-sm)">
+              <div style="font-size:10px;color:var(--text-dim);margin-bottom:3px">Spec</div>
+              <div style="font-size:14px;font-weight:700;color:var(--accent)">${r.huile.spec || '—'}</div>
+            </div>
+            <div style="padding:10px;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-sm)">
+              <div style="font-size:10px;color:var(--text-dim);margin-bottom:3px">Quantité</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text)">${r.huile.quantite || '—'}</div>
+            </div>
+          </div>
+          ${r.huile.marque ? `<div style="font-size:12px;color:var(--text-dim);margin-top:8px">Recommandé : <strong style="color:var(--text)">${r.huile.marque}</strong></div>` : ''}
+        </div>` : ''}
+      ${r.filtres ? `
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--text-dim);font-weight:500;margin-bottom:8px">Références filtres</div>
+          ${Object.entries(r.filtres).map(([k,v]) => `
+            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+              <span style="color:var(--text-dim)">${k==='huile'?'Filtre huile':k==='air'?'Filtre air':k==='habitacle'?'Filtre habitacle':'Filtre carburant'}</span>
+              <span style="font-weight:600;color:var(--text)">${v}</span>
+            </div>`).join('')}
+        </div>` : ''}
+      ${r.interventions?.length ? `
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--text-dim);font-weight:500;margin-bottom:8px">Plan d'entretien</div>
+          <div class="ai-items">
+            ${r.interventions.map((it,i) => `
+              <div class="ai-item" style="animation:gt-fade-in 300ms ease ${i*90}ms both">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div style="width:7px;height:7px;border-radius:50%;background:${statutColor[it.statut]||'var(--text-dim)'};flex-shrink:0"></div>
+                  <div>
+                    <div class="ai-item-label ${it.statut==='urgent'?'urgent':''}">${it.nom}</div>
+                    <div style="font-size:11px;color:var(--text-dim);margin-top:1px">${it.detail||''}</div>
+                  </div>
+                </div>
+                <div class="ai-item-val" style="color:${statutColor[it.statut]||'var(--text-dim)'}">${it.statut?.toUpperCase()}</div>
+              </div>`).join('')}
+          </div>
+        </div>` : ''}
+      ${r.conseils ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;color:var(--text-dim);line-height:1.6">${r.conseils}</div>` : ''}
+    </div>` : '';
+
+  const h = `
+    <div class="screen">
+      <div class="pill-row">
+        ${PROJECTS.map(p => `<button class="pill ${p.id === project.id ? 'active' : ''}" data-action="select-project" data-id="${p.id}">${p.name}</button>`).join('')}
+      </div>
+      <div class="card specs-card">
+        <div class="specs-label">Specs · ${project.name}</div>
+        <div style="height:70px;margin:8px 0">${carSvg(project.color)}</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="form-field" style="margin:0"><label>Motorisation *</label><input id="entMoteur" placeholder="Ex: 2.0 TDI 150ch" value="${saved.moteur||state.entretienMoteur||''}"></div>
+            <div class="form-field" style="margin:0"><label>Code moteur</label><input id="entCode" placeholder="Ex: BKD, N47D20" value="${saved.codeMoteur||state.entretienCode||''}"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="form-field" style="margin:0"><label>Kilométrage actuel</label><input id="entKm" type="number" placeholder="87000" value="${saved.km||state.entretienKm||''}"></div>
+            <div class="form-field" style="margin:0"><label>Dernière vidange (km)</label><input id="entLastVidange" type="number" placeholder="80000" value="${saved.lastVidange||state.entretienLastVidange||''}"></div>
+          </div>
+        </div>
+      </div>
+      <button class="ai-btn ${state.aiLoading ? 'loading' : ''}" data-action="save-entretien-form" style="margin-top:0">
+        <div class="ai-btn-inner">
+          <div class="ai-icon">${state.aiLoading ? '<div class="ai-spin"></div>' : 'AI'}</div>
+          <div>
+            <div class="ai-title">${state.aiLoading ? 'Analyse en cours…' : "Analyser avec l'IA"}</div>
+            <div class="ai-sub">${state.aiLoading ? 'Lecture des specs · ~2s' : 'Recommandations + intervalles'}</div>
+          </div>
+        </div>
+        ${!state.aiLoading ? '<span class="ai-arrow">→</span>' : ''}
+      </button>
+      ${resultHtml}
+    </div>
+  `;
+  $('#main').innerHTML = h;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// SHEETS (modals)
+// ════════════════════════════════════════════════════════════════════════
+function openSheet(title, bodyHtml) {
+  $('#sheetTitle').textContent = title;
+  $('#sheetBody').innerHTML = bodyHtml;
+  $('#sheet').classList.add('open');
+  $('#backdrop').classList.add('open');
+}
+function closeSheet() {
+  $('#sheet').classList.remove('open');
+  $('#backdrop').classList.remove('open');
+}
+
+function sheetProjectDetail(p) {
+  const spent = projectTotal(p);
+  const hours = projectHours(p);
+  const margin = projectMargin(p);
+  return `
+    <div class="detail-hero">${carSvg(p.color)}</div>
+    <div class="detail-name">${p.name}</div>
+    <div class="detail-meta">${p.plate} · ${p.year}</div>
+    <div class="detail-stats">
+      <div class="detail-kpi"><div class="detail-kpi-label">Achat</div><div class="detail-kpi-val">${fmtEur(p.purchase)}</div></div>
+      <div class="detail-kpi"><div class="detail-kpi-label">Dépensé</div><div class="detail-kpi-val" style="color:var(--accent)">${fmtEur(spent)}</div></div>
+      <div class="detail-kpi"><div class="detail-kpi-label">Temps</div><div class="detail-kpi-val">${fmtNum(hours,1)} h</div></div>
+      <div class="detail-kpi"><div class="detail-kpi-label">Marge prévue</div><div class="detail-kpi-val" style="color:${margin>0?'var(--success)':'var(--danger)'}">${margin>0?'+':''}${fmtEur(margin)}</div></div>
+    </div>
+    <h3 style="font-size:13px;color:var(--text);font-weight:600;margin:18px 0 10px">Historique récent</h3>
+    <div class="expense-list">
+      ${p.expenses.slice(0,5).map(e => `
+        <div class="expense">
+          <div class="expense-bar ${CAT_CLASS[e.cat] || 'cat-autre'}"></div>
+          <div class="expense-body">
+            <div class="expense-desc">${e.desc}</div>
+            <div class="expense-meta">${e.cat}</div>
+          </div>
+          <div class="expense-amount">${fmtEur(e.amount)}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function sheetNewSession() {
+  return `<form id="formNewSession">
+    <div class="form-field"><label>Description</label><input name="desc" placeholder="Dépose moteur, vidange..." required></div>
+    <div class="form-row">
+      <div class="form-field"><label>Durée (heures)</label><input name="hours" type="number" step="0.25" placeholder="1.5" required></div>
+      <div class="form-field"><label>Date</label><input name="date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+    </div>
+    <button type="submit" class="form-submit">Enregistrer</button>
+  </form>`;
+}
+
+function sheetNewProject() {
+  return `
+    <form id="formNewProject">
+      <div class="form-field" style="margin-bottom:12px">
+        <div id="photoZone" onclick="document.getElementById('photoInput').click()" style="height:100px;background:var(--surface-alt);border:1.5px dashed var(--border-strong);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;overflow:hidden">
+          <img id="photoPreview" src="" style="display:none;width:100%;height:100%;object-fit:cover">
+          <div id="photoPlaceholder" style="font-size:12px;color:var(--text-dim);text-align:center">📷 Photo de la voiture</div>
+        </div>
+        <input type="file" id="photoInput" name="photoFile" accept="image/*" style="display:none" onchange="(function(input){const r=new FileReader();r.onload=e=>{const img=document.getElementById('photoPreview');img.src=e.target.result;img.style.display='block';document.getElementById('photoPlaceholder').style.display='none'};r.readAsDataURL(input.files[0])})(this)">
+      </div>
+      <div class="form-field"><label>Nom / modèle *</label><input name="name" placeholder="Golf MK2 GTI" required></div>
+      <div class="form-field"><label>Immatriculation</label><input name="plate" placeholder="1234 AB 75"></div>
+      <div class="form-row">
+        <div class="form-field"><label>Année</label><input name="year" type="number" placeholder="1989"></div>
+        <div class="form-field"><label>Prix d'achat (€)</label><input name="purchase" type="number" placeholder="4200"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Budget pièces (€)</label><input name="budget" type="number" placeholder="6500"></div>
+        <div class="form-field"><label>Revente visée (€)</label><input name="target" type="number" placeholder="14000"></div>
+      </div>
+      <button type="submit" class="form-submit">Créer le projet</button>
+    </form>
+  `;
+}
+
+let scanPhotoData = null;
+function handleScanPhoto(input) {
+  if (!input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    scanPhotoData = e.target.result;
+    const preview = document.getElementById('scanPreview');
+    const label = document.getElementById('scanLabel');
+    const analyzeDiv = document.getElementById('scanAnalyzeBtn');
+    if (preview) { preview.src = e.target.result; preview.style.display = 'block'; }
+    if (label) label.textContent = '📷 Photo ajoutée';
+    if (analyzeDiv) analyzeDiv.style.display = 'block';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+async function analyseFacture() {
+  const apiKey = getApiKey();
+  if (!apiKey) { openSheet('Clé API', sheetApiKey()); return; }
+  if (!scanPhotoData) { toast('Prends une photo d\'abord', 'warn'); return; }
+  const btn = document.getElementById('scanBtn');
+  if (btn) { btn.classList.add('loading'); btn.querySelector('.ai-title').textContent = 'Analyse en cours…'; }
+  try {
+    const base64 = scanPhotoData.split(',')[1];
+    const mediaType = 'image/jpeg';
+    const res = await fetch(WORKER_URL, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 800,
+        system: 'Tu extrais des données de factures. Réponds UNIQUEMENT en JSON valide sans markdown.',
+        messages: [{ role: 'user', content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+          { type: 'text', text: 'Extrais les produits de cette facture. JSON: {"fournisseur":"nom ou null","produits":[{"description":"nom piece","montant":12.50,"categorie":"Pièces mécaniques|Carrosserie|Électrique|Fluides / consommables|Outillage|Autre"}]}. Si illisible: {"erreur":"non lisible"}' }
+        ]}] })
+    });
+    const data = await res.json();
+    const raw = data.content[0].text.trim();
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('Réponse invalide');
+    const result = JSON.parse(match[0]);
+    if (result.erreur) { toast(result.erreur, 'warn'); return; }
+    const produits = result.produits || [];
+    if (!produits.length) { toast('Aucun produit détecté', 'warn'); return; }
+    const p = produits[0];
+    const descInput = document.querySelector('#formNewExpense [name="desc"]');
+    const amountInput = document.querySelector('#formNewExpense [name="amount"]');
+    const vendorInput = document.querySelector('#formNewExpense [name="vendor"]');
+    const catSelect = document.querySelector('#formNewExpense [name="cat"]');
+    if (descInput) descInput.value = p.description || '';
+    if (amountInput) amountInput.value = p.montant || '';
+    if (vendorInput && result.fournisseur) vendorInput.value = result.fournisseur;
+    if (catSelect && p.categorie) catSelect.value = p.categorie;
+    toast(produits.length > 1 ? produits.length + ' produits détectés — 1er rempli' : 'Facture analysée ✓');
+  } catch(err) { toast('Erreur: ' + err.message.slice(0,30), 'warn'); }
+  finally {
+    if (btn) { btn.classList.remove('loading'); btn.querySelector('.ai-title').textContent = 'Analyser la facture'; }
+  }
+}
+
+function sheetNewExpense() {
+  return `
+    <div class="scan-hint" onclick="document.getElementById('scanInput').click()" style="cursor:pointer">
+      <span id="scanLabel">📷  Scanner facture · IA — Appuie ici</span>
+      <img id="scanPreview" src="" style="display:none;width:60px;height:60px;object-fit:cover;border-radius:6px;margin-top:6px">
+    </div>
+    <input type="file" id="scanInput" accept="image/*" style="display:none" onchange="handleScanPhoto(this)">
+    <div id="scanAnalyzeBtn" style="display:none;margin-bottom:12px">
+      <button class="ai-btn" id="scanBtn" onclick="analyseFacture()" style="padding:12px 14px">
+        <div class="ai-btn-inner"><div class="ai-icon">AI</div><div><div class="ai-title">Analyser la facture</div><div class="ai-sub">Détection automatique des montants</div></div></div>
+        <span class="ai-arrow">→</span>
+      </button>
+    </div>
+    <form id="formNewExpense">
+      <div class="form-field"><label>Description *</label><input name="desc" placeholder="Plaquettes de frein avant" required></div>
+      <div class="form-row">
+        <div class="form-field"><label>Montant (€) *</label><input name="amount" type="number" step="0.01" placeholder="89" required></div>
+        <div class="form-field"><label>Date</label><input name="date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      </div>
+      <div class="form-field"><label>Fournisseur</label><input name="vendor" placeholder="Oscaro"></div>
+      <div class="form-field">
+        <label>Catégorie</label>
+        <select name="cat">${CATEGORIES.map(c => `<option>${c}</option>`).join('')}</select>
+      </div>
+      <div class="form-field">
+        <label>Projet</label>
+        <select name="projectId">${PROJECTS.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select>
+      </div>
+      <button type="submit" class="form-submit">Ajouter la dépense</button>
+    </form>
+  `;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// ROUTING
+// ════════════════════════════════════════════════════════════════════════
+function render() {
+  if (state.tab === 'projects') renderProjects();
+  else if (state.tab === 'expenses') renderExpenses();
+  else if (state.tab === 'time') {
+    renderTime();
+    if (state.running) startChronoLoop();
+  }
+  else if (state.tab === 'bilan') renderBilan();
+  else if (state.tab === 'entretien') renderEntretien();
+}
+
+function moveIndicator() {
+  const active = $('.tab.active');
+  if (!active) return;
+  const ind = $('#tabIndicator');
+  ind.style.left = active.offsetLeft + 'px';
+  ind.style.width = active.offsetWidth + 'px';
+}
+
+function setTab(tab) {
+  state.tab = tab;
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  moveIndicator();
+  render();
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// EVENTS
+// ════════════════════════════════════════════════════════════════════════
+$('#tabs').addEventListener('click', (e) => {
+  const tab = e.target.closest('.tab');
+  if (tab) setTab(tab.dataset.tab);
+});
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('[data-action]');
+  if (!t) return;
+  const action = t.dataset.action;
+
+  if (action === 'open-project') {
+    const p = projectById(t.dataset.id);
+    openSheet('Projet · Détail', sheetProjectDetail(p));
+  }
+  else if (action === 'new-project') {
+    openSheet('Nouveau projet', sheetNewProject());
+  }
+  else if (action === 'new-expense') {
+    openSheet('Nouvelle dépense', sheetNewExpense());
+  }
+  else if (action === 'new-session') {
+    openSheet('Saisie manuelle', sheetNewSession());
+  }
+  else if (action === 'select-project') {
+    state.activeProjectId = t.dataset.id;
+    state.aiResult = null;
+    render();
+  }
+  else if (action === 'toggle-chrono') {
+    state.running = !state.running;
+    renderTime();
+    if (state.running) startChronoLoop();
+  }
+  else if (action === 'reset-chrono') {
+    state.running = false;
+    state.ms = 0;
+    renderTime();
+  }
+  else if (action === 'save-session') {
+    if (state.ms < 1000) {
+      toast('Démarrer le chrono d\'abord', 'warn');
+      return;
+    }
+    toast('Session enregistrée');
+    state.ms = 0;
+    state.running = false;
+    renderTime();
+  }
+  else if (action === 'ai-analyze') {
+    if (state.aiLoading) return;
+    const apiKey = getApiKey();
+    if (!apiKey) { openSheet('Clé API', sheetApiKey()); return; }
+    state.aiLoading = true;
+    state.aiResult = null;
+    renderEntretien();
+    const p = projectById(state.activeProjectId);
+    const moteur = state.entretienMoteur || '';
+    const codeMoteur = state.entretienCode || '';
+    const km = state.entretienKm || 0;
+    const lastVidange = state.entretienLastVidange || 0;
+    if (!moteur) {
+      state.aiLoading = false;
+      toast('Renseigne la motorisation d\'abord', 'warn');
+      renderEntretien();
+      return;
+    }
+    (async () => {
+      try {
+        const prompt = 'Tu es un expert mécanique auto. Véhicule: ' + p.name + (p.year ? ' (' + p.year + ')' : '') + ', motorisation: ' + moteur + (codeMoteur ? ', code moteur EXACT: ' + codeMoteur : '') + '. Km actuel: ' + (km || 'inconnu') + '. Dernière vidange: ' + (lastVidange || 'inconnue') + '. Indique PRECISEMENT courroie ou chaine pour CE moteur. Réponds UNIQUEMENT en JSON: {"huile":{"spec":"","quantite":"","marque":""},"filtres":{"huile":"","air":"","habitacle":"","carburant":""},"interventions":[{"nom":"","intervalle_km":0,"statut":"urgent|bientot|ok","detail":""}],"conseils":""}';
+        const res = await fetch(WORKER_URL, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 1000,
+            system: 'Réponds UNIQUEMENT en JSON valide, sans markdown ni texte.',
+            messages: [{ role: 'user', content: prompt }] })
+        });
+        const data = await res.json();
+        const raw = data.content[0].text.trim();
+        const match = raw.match(/\{[\s\S]*\}/);
+        if (!match) throw new Error('Réponse invalide');
+        const result = JSON.parse(match[0]);
+        localStorage.setItem('gt_entretien_' + p.id, JSON.stringify({ moteur, codeMoteur, km, lastVidange, result }));
+        state.aiLoading = false;
+        state.aiResult = result;
+        renderEntretien();
+        toast('Analyse terminée');
+      } catch(err) {
+        state.aiLoading = false;
+        state.aiResult = null;
+        renderEntretien();
+        toast('Erreur: ' + err.message.slice(0,30), 'warn');
+      }
+    })();
+  }
+  else if (action === 'save-entretien-form') {
+    const p = projectById(state.activeProjectId);
+    state.entretienMoteur = document.getElementById('entMoteur')?.value || '';
+    state.entretienCode = document.getElementById('entCode')?.value || '';
+    state.entretienKm = parseInt(document.getElementById('entKm')?.value) || 0;
+    state.entretienLastVidange = parseInt(document.getElementById('entLastVidange')?.value) || 0;
+    document.querySelector('[data-action="ai-analyze"]')?.click();
+  }
+  else if (action === 'open-api-key') {
+    openSheet('Clé API', sheetApiKey());
+  }
+  else if (action === 'open-supabase') {
+    openSheet('Connexion Supabase', sheetSupabase());
+  }
+  else if (action === 'open-backup') {
+    openSheet('Sauvegarde', sheetBackup());
+  }
+  else if (action === 'delete-expense') {
+    const pid = t.dataset.pid;
+    const eid = t.dataset.eid;
+    const p = projectById(pid);
+    if (p) { p.expenses = p.expenses.filter(e => e.id !== eid); saveLocal(); sbDeleteExpense(eid); }
+    toast('Dépense supprimée');
+    render();
+  }
+  else if (action === 'save-session') {
+    if (state.ms < 1000) { toast('Démarrer le chrono d\'abord', 'warn'); return; }
+    const p = projectById(state.activeProjectId);
+    if (p) {
+      const desc = prompt('Description de la session ?') || 'Session chrono';
+      const newS = { id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), desc, hours: parseFloat((state.ms/3600000).toFixed(2)), date: new Date().toISOString().slice(0,10), tasks: [] };
+      p.sessions.unshift(newS);
+      saveLocal();
+      sbSaveSession(newS, p.id);
+    }
+    state.ms = 0; state.running = false;
+    toast('Session enregistrée');
+    renderTime();
+  }
+});
+
+// Form submissions
+document.addEventListener('submit', (e) => {
+  if (e.target.id === 'formNewProject') {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    if (!data.name) return;
+    const photoPreviewImg = document.getElementById('photoPreview');
+    const photoData = photoPreviewImg && photoPreviewImg.style.display !== 'none' ? photoPreviewImg.src : null;
+    const newP = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      name: data.name, plate: data.plate || '',
+      year: data.year || '', purchase: parseFloat(data.purchase) || 0,
+      budget: parseFloat(data.budget) || 0, target: parseFloat(data.target) || 0,
+      km: 0, color: '#84cc16', progress: 0, notes: '', photo: photoData,
+      expenses: [], sessions: [],
+    };
+    PROJECTS.push(newP);
+    saveLocal();
+    sbSaveProject(newP);
+    if (PROJECTS.length === 1) state.activeProjectId = newP.id;
+    closeSheet();
+    toast('Projet créé');
+    render();
+  }
+  else if (e.target.id === 'formNewExpense') {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    if (!data.desc || !data.amount) return;
+    const p = projectById(data.projectId || state.activeProjectId);
+    if (p) {
+      const newE = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+        desc: data.desc, amount: parseFloat(data.amount),
+        date: data.date || new Date().toISOString().slice(0,10),
+        cat: data.cat, vendor: data.vendor || '', photo: null,
+      };
+      p.expenses.unshift(newE);
+      saveLocal();
+      sbSaveExpense(newE, p.id);
+    }
+    closeSheet();
+    toast('Dépense ajoutée');
+    render();
+  }
+  else if (e.target.id === 'formNewSession') {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    if (!data.desc || !data.hours) return;
+    const p = projectById(state.activeProjectId);
+    if (p) {
+      const newS = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+        desc: data.desc, hours: parseFloat(data.hours),
+        date: data.date || new Date().toISOString().slice(0,10), tasks: [],
+      };
+      p.sessions.unshift(newS);
+      saveLocal();
+      sbSaveSession(newS, p.id);
+    }
+    closeSheet();
+    toast('Session enregistrée');
+    render();
+  }
+});
+
+function sheetApiKey() {
+  return `<div class="form-field"><label>Clé API Anthropic (sk-ant-...)</label><input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." value="${getApiKey()}"></div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6">Stockée uniquement sur ton iPhone. Obtiens-la sur platform.anthropic.com</div>
+    <button class="form-submit" onclick="saveApiKey(document.getElementById('apiKeyInput').value);closeSheet();toast('Clé API enregistrée')">Enregistrer</button>`;
+}
+
+function sheetSupabase() {
+  return `<div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6">Connecte Supabase pour ne plus perdre tes données.<br>Settings → Data API → copie Project URL et Publishable key.</div>
+    <div class="form-field"><label>Project URL</label><input type="text" id="sbUrl" placeholder="https://xxxx.supabase.co" value="${getSupabaseUrl()}"></div>
+    <div class="form-field"><label>Clé publique</label><input type="password" id="sbKey" placeholder="eyJhbGci..." value="${getSupabaseKey()}"></div>
+    <button class="form-submit" onclick="connectSupabase()">Connecter</button>
+    <button class="form-submit" style="background:var(--surface-alt);color:var(--text);border:1px solid var(--border);margin-top:8px" onclick="importFromBackup()">Importer depuis sauvegarde JSON</button>`;
+}
+
+async function connectSupabase() {
+  const url = document.getElementById('sbUrl')?.value.trim().replace(/\/$/, '');
+  const key = document.getElementById('sbKey')?.value.trim();
+  if (!url || !key) { toast('Remplis les deux champs', 'warn'); return; }
+  localStorage.setItem(SUPABASE_URL_KEY, url);
+  localStorage.setItem(SUPABASE_KEY_KEY, key);
+  closeSheet();
+  toast('Connexion en cours…');
+  const ok = await loadFromSupabase();
+  if (ok) {
+    supabaseReady = true;
+    updateSyncPill();
+    render();
+    toast('Supabase connecté ✓');
+  } else {
+    toast('Erreur de connexion', 'warn');
+  }
+}
+
+function importFromBackup() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        const data = parsed.db?.projets ? parsed.db : { projets: parsed };
+        const projets = Array.isArray(parsed) ? parsed : (parsed.db?.projets || parsed.projets || []);
+        const depenses = parsed.db?.depenses || parsed.depenses || [];
+        const sessions = parsed.db?.sessions || parsed.sessions || [];
+        if (!projets.length) { toast('Fichier invalide', 'warn'); return; }
+        if (!confirm('Importer ' + projets.length + ' projet(s) ?')) return;
+        toast('Import en cours…');
+        PROJECTS.length = 0;
+        for (const p of projets) {
+          const deps = depenses.filter(d => d.projetId === p.id).map(d => ({ id: d.id, desc: d.desc || '', cat: d.cat || 'Autre', amount: d.montant || 0, date: d.date || '', vendor: d.fourn || '', photo: d.photo || null }));
+          const sess = sessions.filter(s => s.projetId === p.id).map(s => ({ id: s.id, desc: s.desc || '', hours: s.duree || 0, date: s.date || '', tasks: s.tasks || [] }));
+          const newP = { id: p.id, name: p.nom || p.name || 'Projet', plate: p.immat || p.plate || '', year: p.annee || p.year || '', purchase: p.achat || p.purchase || 0, budget: p.budget || 0, target: p.revente || p.target || 0, km: 0, color: '#84cc16', progress: 0, notes: p.notes || '', photo: p.photo || null, expenses: deps, sessions: sess };
+          PROJECTS.push(newP);
+          if (supabaseReady) {
+            await sbSaveProject(newP);
+            for (const d of deps) await sbSaveExpense(d, newP.id);
+            for (const s of sess) await sbSaveSession(s, newP.id);
+          }
+        }
+        saveLocal();
+        if (PROJECTS.length > 0) state.activeProjectId = PROJECTS[0].id;
+        closeSheet();
+        render();
+        toast(projets.length + ' projets importés ✓');
+      } catch(err) { toast('Erreur: ' + err.message.slice(0,30), 'warn'); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function sheetBackup() {
+  const last = parseInt(localStorage.getItem(BACKUP_DATE_KEY) || '0');
+  const lastStr = last ? new Date(last).toLocaleDateString('fr-FR') : 'Jamais';
+  return `<div style="font-size:13px;color:var(--text-dim);margin-bottom:16px">Dernière sauvegarde : <strong style="color:var(--text)">${lastStr}</strong></div>
+    <button class="form-submit" onclick="exportBackup()">Télécharger la sauvegarde (.json)</button>
+    <button class="form-submit" style="background:var(--surface-alt);color:var(--text);border:1px solid var(--border);margin-top:8px" onclick="importFromBackup()">Restaurer depuis un fichier</button>`;
+}
+
+function exportBackup() {
+  const data = { version: 1, exportedAt: new Date().toISOString(), db: {
+    projets: PROJECTS.map(p => ({ id: p.id, nom: p.name, immat: p.plate, annee: p.year, achat: p.purchase, budget: p.budget, revente: p.target, notes: p.notes, photo: p.photo, createdAt: Date.now() })),
+    depenses: PROJECTS.flatMap(p => p.expenses.map(e => ({ id: e.id, projetId: p.id, desc: e.desc, fourn: e.vendor, montant: e.amount, cat: e.cat, date: e.date, photo: e.photo }))),
+    sessions: PROJECTS.flatMap(p => p.sessions.map(s => ({ id: s.id, projetId: p.id, desc: s.desc, duree: s.hours, date: s.date, tasks: s.tasks })))
+  }};
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = 'garagetrack-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click(); URL.revokeObjectURL(url);
+  localStorage.setItem(BACKUP_DATE_KEY, Date.now().toString());
+  closeSheet(); toast('Sauvegarde téléchargée ✓');
+}
+
+function updateSyncPill() {
+  const dot = document.querySelector('.sync-dot');
+  const text = document.querySelector('.sync-text');
+  if (!dot || !text) return;
+  if (supabaseReady) {
+    dot.style.background = 'var(--success)';
+    dot.style.boxShadow = '0 0 6px var(--success)';
+    text.textContent = 'Supabase ✓';
+  } else if (getSupabaseUrl()) {
+    dot.style.background = 'var(--warn)';
+    dot.style.boxShadow = '0 0 6px var(--warn)';
+    text.textContent = 'Hors ligne';
+  } else {
+    dot.style.background = 'var(--text-mute)';
+    dot.style.boxShadow = 'none';
+    text.textContent = 'Non configuré';
+  }
+}
+
+$('#sheetClose').addEventListener('click', closeSheet);
+$('#backdrop').addEventListener('click', closeSheet);
+window.addEventListener('resize', moveIndicator);
+
+// Ripple on buttons
+document.addEventListener('pointerdown', (e) => {
+  const btn = e.target.closest('.btn, .pill, .ai-btn, .form-submit, .add-card, .add-btn, .sync-pill, .ps-chip');
+  if (!btn) return;
+  const rect = btn.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const r = document.createElement('span');
+  r.className = 'ripple';
+  r.style.left = x + 'px';
+  r.style.top = y + 'px';
+  if (getComputedStyle(btn).position === 'static') btn.style.position = 'relative';
+  btn.appendChild(r);
+  setTimeout(() => r.remove(), 600);
+});
+
+// Initial render
+async function init() {
+  loadLocal();
+  if (PROJECTS.length > 0) state.activeProjectId = PROJECTS[0].id;
+  render();
+  requestAnimationFrame(moveIndicator);
+  if (getSupabaseUrl() && getSupabaseKey()) {
+    const ok = await loadFromSupabase();
+    if (ok) {
+      supabaseReady = true;
+      if (PROJECTS.length > 0) state.activeProjectId = PROJECTS[0].id;
+      updateSyncPill();
+      render();
+    }
+  }
+  updateSyncPill();
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+init();
+</script>
+
 </body>
 </html>

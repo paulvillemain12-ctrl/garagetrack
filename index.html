@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="fr">
 <head>
@@ -105,7 +106,7 @@
   .project-name { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; line-height: 1.1; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .project-plate { font-family: var(--num); font-size: 11px; font-weight: 600; color: var(--accent); margin-top: 4px; letter-spacing: 0.5px; }
   .progress-badge { padding: 4px 10px; border-radius: 6px; background: var(--surface-alt); border: 1px solid var(--border); font-family: var(--num); font-size: 12px; font-weight: 700; color: var(--text); white-space: nowrap; }
-  .car-illu { height: 120px; margin: 8px -16px -8px; overflow: hidden; }
+  .car-illu { height: 160px; margin: 8px -16px 0; overflow: hidden; }
 
   .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--border); }
   .stats-row > div { padding: 10px 12px; }
@@ -680,8 +681,8 @@ function renderProjects() {
                 <div class="progress-badge">${Math.round(p.progress*100)}%</div>
               </div>
               <div class="car-illu" style="position:relative">
-                ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;display:block;object-position:center 40%">` : carSvg(p.color)}
-                <div style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to top,rgba(20,20,20,0.7) 0%,transparent 100%)"></div>
+                ${p.photo ? `<img src="${p.photo}" style="width:100%;height:100%;object-fit:cover;display:block;object-position:center center">` : carSvg(p.color)}
+                <div style="position:absolute;bottom:0;left:0;right:0;height:24px;background:linear-gradient(to top,rgba(20,20,20,0.4) 0%,transparent 100%)"></div>
               </div>
             </div>
             <div class="stats-row">

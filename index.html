@@ -20,29 +20,30 @@
     <div id="splash">
       <div class="splash-pip"></div>
       <h1 class="splash-title">GARAGE<span>TRACK</span></h1>
-      <div class="splash-sub">Mon carnet de bord</div>
+      <div class="splash-sub">Carnet de bord · v2.4</div>
     </div>
 
     <!-- NAV -->
     <nav id="bottom-nav">
+      <div class="nav-indicator" id="nav-indicator"></div>
       <button class="nav-item active" data-page="projets" onclick="navigate('projets')">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
         <span>Projets</span>
       </button>
       <button class="nav-item" data-page="depenses" onclick="navigate('depenses')">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         <span>Dépenses</span>
       </button>
       <button class="nav-item" data-page="temps" onclick="navigate('temps')">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>Temps</span>
       </button>
       <button class="nav-item" data-page="bilan" onclick="navigate('bilan')">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         <span>Bilan</span>
       </button>
       <button class="nav-item" data-page="entretien" onclick="navigate('entretien')">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
         <span>Entretien</span>
       </button>
     </nav>
@@ -60,12 +61,24 @@
       <!-- PROJETS -->
       <div id="page-projets" class="page active">
         <div class="page-header">
-          <h2 class="page-title">MES PROJETS</h2>
+          <div class="header-brand">
+            <div class="header-logo">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M5 17h2m10 0h2M3 14l1.5-5a2 2 0 0 1 2-1.5h11a2 2 0 0 1 2 1.5L21 14M3 14v3a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-1h12v1a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-3M3 14h18" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="header-titles">
+              <div class="page-title">GARAGETRACK</div>
+              <div class="page-subtitle">Carnet de bord · v2.4</div>
+            </div>
+          </div>
+          <div class="header-actions">
           <button class="btn-icon" onclick="openSupabaseSetup()" style="margin-right:8px" title="Supabase"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></button>
           <button class="btn-icon" onclick="openBackupModal()" style="margin-right:8px" title="Sauvegarde"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
           <button class="btn-icon" onclick="openModal('modal-new-projet')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
+          </div>
         </div>
         <div id="proj-list" class="proj-list"></div>
         <div id="proj-empty" class="empty-state" style="display:none">

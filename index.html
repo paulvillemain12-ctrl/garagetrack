@@ -1207,7 +1207,6 @@ async function analyseFacture() {
     const result = JSON.parse(match[0]);
     if (result.erreur) { toast(result.erreur, 'warn'); return; }
     const produits = result.produits || [];
-    const produits = result.produits || [];
     if (!produits.length) { toast('Aucun produit détecté', 'warn'); return; }
     if (produits.length === 1) {
       const p = produits[0];

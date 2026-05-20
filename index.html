@@ -288,6 +288,8 @@
   .form-field input, .form-field select, .form-field textarea { width: 100%; padding: 11px 13px; background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; color: var(--text); outline: none; transition: border-color 200ms; }
   .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--accent); }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .form-input { width:100%;background:var(--surface-alt);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px;padding:9px 12px;outline:none;box-sizing:border-box; }
+  .form-input:focus { border-color:rgba(132,204,22,0.4); }
   .form-submit { margin-top: 8px; padding: 14px; background: var(--accent); border-radius: var(--radius); text-align: center; font-size: 13px; font-weight: 700; color: var(--bg); cursor: pointer; transition: transform 120ms; width: 100%; border: none; }
   .form-submit:active { transform: scale(0.98); }
 
@@ -1205,21 +1207,80 @@ async function analyseFacture() {
     const result = JSON.parse(match[0]);
     if (result.erreur) { toast(result.erreur, 'warn'); return; }
     const produits = result.produits || [];
+    const produits = result.produits || [];
     if (!produits.length) { toast('Aucun produit détecté', 'warn'); return; }
-    const p = produits[0];
-    const descInput = document.querySelector('#formNewExpense [name="desc"]');
-    const amountInput = document.querySelector('#formNewExpense [name="amount"]');
-    const vendorInput = document.querySelector('#formNewExpense [name="vendor"]');
-    const catSelect = document.querySelector('#formNewExpense [name="cat"]');
-    if (descInput) descInput.value = p.description || '';
-    if (amountInput) amountInput.value = p.montant || '';
-    if (vendorInput && result.fournisseur) vendorInput.value = result.fournisseur;
-    if (catSelect && p.categorie) catSelect.value = p.categorie;
-    toast(produits.length > 1 ? produits.length + ' produits — 1er rempli' : 'Facture analysée ✓');
+    if (produits.length === 1) {
+      const p = produits[0];
+      const descInput = document.querySelector('#formNewExpense [name="desc"]');
+      const amountInput = document.querySelector('#formNewExpense [name="amount"]');
+      const vendorInput = document.querySelector('#formNewExpense [name="vendor"]');
+      const catSelect = document.querySelector('#formNewExpense [name="cat"]');
+      if (descInput) descInput.value = p.description || '';
+      if (amountInput) amountInput.value = p.montant || '';
+      if (vendorInput && result.fournisseur) vendorInput.value = result.fournisseur;
+      if (catSelect && p.categorie) catSelect.value = p.categorie;
+      toast('Facture analysée ✓');
+    } else {
+      // Plusieurs produits — ouvrir modal de confirmation
+      openMultiProductSheet(produits, result.fournisseur);
+    }
   } catch(err) { toast('Erreur: ' + err.message.slice(0,50), 'warn'); }
   finally {
     if (btn) { btn.classList.remove('loading'); btn.querySelector('.ai-title').textContent = 'Analyser la facture'; }
   }
+}
+
+function openMultiProductSheet(produits, fournisseur) {
+  const total = produits.reduce((s, p) => s + (p.montant || 0), 0);
+  const cats = ['Pieces mecaniques','Carrosserie','Electrique','Fluides / consommables','Outillage','Autre'];
+  const body = `
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px">${produits.length} produits détectés · Total : <strong style="color:var(--text)">${total.toFixed(2)} €</strong>${fournisseur ? ' · ' + fournisseur : ''}</div>
+    <div id="multiProdList">
+      ${produits.map((p, i) => `
+        <div style="padding:10px 0;border-bottom:1px solid var(--border)" id="mprod-${i}">
+          <input class="form-input" id="mp-desc-${i}" value="${(p.description||'').replace(/"/g,'')}" placeholder="Description" style="margin-bottom:6px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="form-input" id="mp-amt-${i}" type="number" value="${p.montant||0}" style="width:90px">
+            <select class="form-input" id="mp-cat-${i}" style="flex:1">
+              ${cats.map(c => `<option ${c===p.categorie?'selected':''}>${c}</option>`).join('')}
+            </select>
+            <button onclick="document.getElementById('mprod-${i}').remove()" style="color:var(--text-mute);background:none;border:none;font-size:16px;cursor:pointer;padding:4px">✕</button>
+          </div>
+        </div>`).join('')}
+    </div>
+    <button class="form-submit" style="margin-top:14px" onclick="confirmMultiProducts('${fournisseur||''}')">Enregistrer toutes les dépenses</button>
+  `;
+  openSheet(produits.length + ' produits détectés', body);
+}
+
+function confirmMultiProducts(fournisseur) {
+  const projet = projectById(state.activeProjectId);
+  if (!projet) { toast('Aucun projet sélectionné', 'warn'); return; }
+  const today = new Date().toISOString().slice(0,10);
+  let count = 0;
+  const items = document.querySelectorAll('#multiProdList > div[id^="mprod-"]');
+  items.forEach((row, i) => {
+    const desc = row.querySelector('[id^="mp-desc-"]')?.value?.trim();
+    const amt = parseFloat(row.querySelector('[id^="mp-amt-"]')?.value);
+    const cat = row.querySelector('[id^="mp-cat-"]')?.value;
+    if (desc && amt > 0) {
+      const newE = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2,6) + i,
+        desc, amount: amt, cat: cat || 'Autre',
+        vendor: fournisseur || '', date: today, photo: null,
+      };
+      projet.expenses.unshift(newE);
+      sbSaveExpense(newE, projet.id);
+      count++;
+    }
+  });
+  saveLocal();
+  closeSheet();
+  toast(count + ' dépenses ajoutées ✓');
+  state.tab = 'expenses';
+  state.expenseFilterId = projet.id;
+  render();
+  moveIndicator();
 }
 
 function sheetNewExpense() {

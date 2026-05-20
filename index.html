@@ -1470,8 +1470,11 @@ document.addEventListener('submit', (e) => {
       sbSaveExpense(newE, p.id);
     }
     closeSheet();
-    toast('Dépense ajoutée');
+    toast('Dépense ajoutée ✓');
+    state.tab = 'expenses';
+    state.expenseFilterId = p?.id || null;
     render();
+    moveIndicator();
   }
   else if (e.target.id === 'formNewSession') {
     e.preventDefault();

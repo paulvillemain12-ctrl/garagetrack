@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="fr">
 <head>
@@ -1195,9 +1194,11 @@ async function analyseFacture() {
         ]}] })
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || 'Erreur API ' + res.status);
+    if (!data.content?.[0]?.text) throw new Error('Réponse vide — vérifie ta clé API');
     const raw = data.content[0].text.trim();
-    const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('Réponse invalide');
+    const match = raw.match(/{[\s\S]*}/);
+    if (!match) throw new Error('Format invalide');
     const result = JSON.parse(match[0]);
     if (result.erreur) { toast(result.erreur, 'warn'); return; }
     const produits = result.produits || [];
@@ -1211,8 +1212,8 @@ async function analyseFacture() {
     if (amountInput) amountInput.value = p.montant || '';
     if (vendorInput && result.fournisseur) vendorInput.value = result.fournisseur;
     if (catSelect && p.categorie) catSelect.value = p.categorie;
-    toast(produits.length > 1 ? produits.length + ' produits détectés — 1er rempli' : 'Facture analysée ✓');
-  } catch(err) { toast('Erreur: ' + err.message.slice(0,30), 'warn'); }
+    toast(produits.length > 1 ? produits.length + ' produits — 1er rempli' : 'Facture analysée ✓');
+  } catch(err) { toast('Erreur: ' + err.message.slice(0,50), 'warn'); }
   finally {
     if (btn) { btn.classList.remove('loading'); btn.querySelector('.ai-title').textContent = 'Analyser la facture'; }
   }

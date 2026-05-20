@@ -1247,13 +1247,14 @@ function openMultiProductSheet(produits, fournisseur) {
           </div>
         </div>`).join('')}
     </div>
-    <button class="form-submit" style="margin-top:14px" onclick="confirmMultiProducts('${fournisseur||''}')">Enregistrer toutes les dépenses</button>
+    <button class="form-submit" style="margin-top:14px" onclick="confirmMultiProducts('${fournisseur||''}', '${state.activeProjectId||''}')">Enregistrer toutes les dépenses</button>
   `;
   openSheet(produits.length + ' produits détectés', body);
 }
 
-function confirmMultiProducts(fournisseur) {
-  const projet = projectById(state.activeProjectId);
+function confirmMultiProducts(fournisseur, projectId) {
+  const pid = projectId || state.activeProjectId;
+  const projet = PROJECTS.find(p => p.id === pid);
   if (!projet) { toast('Aucun projet sélectionné', 'warn'); return; }
   const today = new Date().toISOString().slice(0,10);
   let count = 0;
@@ -1308,7 +1309,7 @@ function sheetNewExpense() {
       </div>
       <div class="form-field">
         <label>Projet</label>
-        <select name="projectId">${PROJECTS.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select>
+        <select name="projectId">${PROJECTS.map(p => `<option value="${p.id}" ${p.id === state.activeProjectId ? 'selected' : ''}>${p.name}</option>`).join('')}</select>
       </div>
       <button type="submit" class="form-submit">Ajouter la dépense</button>
     </form>
@@ -1517,22 +1518,23 @@ document.addEventListener('submit', (e) => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(e.target));
     if (!data.desc || !data.amount) return;
-    const p = projectById(data.projectId || state.activeProjectId);
-    if (p) {
-      const newE = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
-        desc: data.desc, amount: parseFloat(data.amount),
-        date: data.date || new Date().toISOString().slice(0,10),
-        cat: data.cat, vendor: data.vendor || '', photo: null,
-      };
-      p.expenses.unshift(newE);
-      saveLocal();
-      sbSaveExpense(newE, p.id);
-    }
+    const selectedProjectId = data.projectId || state.activeProjectId;
+    const p = PROJECTS.find(proj => proj.id === selectedProjectId);
+    if (!p) { toast('Projet introuvable', 'warn'); return; }
+    const newE = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      desc: data.desc, amount: parseFloat(data.amount),
+      date: data.date || new Date().toISOString().slice(0,10),
+      cat: data.cat, vendor: data.vendor || '', photo: null,
+    };
+    p.expenses.unshift(newE);
+    saveLocal();
+    sbSaveExpense(newE, p.id);
     closeSheet();
-    toast('Dépense ajoutée ✓');
+    toast('Dépense ajoutée à ' + p.name + ' ✓');
     state.tab = 'expenses';
-    state.expenseFilterId = p?.id || null;
+    state.expenseFilterId = p.id;
+    state.activeProjectId = p.id;
     render();
     moveIndicator();
   }

@@ -355,11 +355,22 @@
 
   <!-- Tabs -->
   <nav class="tabs" id="tabs">
-    <button class="tab active" data-tab="projects"><span class="tab-icon">◧</span><span>Projets</span></button>
-    <button class="tab" data-tab="expenses"><span class="tab-icon">€</span><span>Dépenses</span></button>
-    <button class="tab" data-tab="time"><span class="tab-icon">◷</span><span>Temps</span></button>
-    <button class="tab" data-tab="bilan"><span class="tab-icon">◢</span><span>Bilan</span></button>
-    <button class="tab" data-tab="entretien"><span class="tab-icon">⚙</span><span>Entretien</span></button>
+    <!-- Mode accueil -->
+    <div id="nav-home" style="display:flex;flex:1">
+      <button class="tab active" data-tab="projects"><span class="tab-icon">◧</span><span>Accueil</span></button>
+    </div>
+    <!-- Mode projet -->
+    <div id="nav-project" style="display:none;flex:1;align-items:center">
+      <button id="nav-back" data-action="back-to-projects" style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0">
+        ← <span id="nav-back-label">Accueil</span>
+      </button>
+      <div style="flex:1;display:flex;overflow:hidden">
+        <button class="tab" data-tab="expenses"><span class="tab-icon">€</span><span>Dépenses</span></button>
+        <button class="tab" data-tab="time"><span class="tab-icon">◷</span><span>Temps</span></button>
+        <button class="tab" data-tab="bilan"><span class="tab-icon">◢</span><span>Bilan</span></button>
+        <button class="tab" data-tab="entretien"><span class="tab-icon">⚙</span><span>Entretien</span></button>
+      </div>
+    </div>
     <div class="tab-indicator" id="tabIndicator"></div>
   </nav>
 
@@ -539,6 +550,7 @@ const CAT_COLORS = {
 const state = {
   tab: 'projects',
   activeProjectId: null,
+  projectMode: false,  // true = on est dans un projet spécifique
   running: false, ms: 0, rafId: null, lastT: 0,
   aiLoading: false, aiResult: null,
   entretienMoteur: '', entretienCode: '', entretienKm: 0, entretienLastVidange: 0,
@@ -735,16 +747,13 @@ function renderExpenses() {
   })).filter(c => c.value > 0);
   const catMax = catTotals.reduce((s, c) => s + c.value, 0) || 1;
 
-  const pillsHtml = `<div class="pill-row" style="margin-bottom:14px">
-    <button class="pill ${!filterId ? 'active' : ''}" data-action="filter-expenses" data-id="">Tous</button>
-    ${PROJECTS.map(p => `<button class="pill ${filterId === p.id ? 'active' : ''}" data-action="filter-expenses" data-id="${p.id}">${p.name}</button>`).join('')}
-  </div>`;
+  const pillsHtml = '';
 
   const h = `
     <div class="screen">
       ${pillsHtml}
       <div class="card total-card">
-        <div class="total-label">${filterId ? PROJECTS.find(p=>p.id===filterId)?.name : 'Toutes dépenses'}</div>
+        <div class="total-label">${PROJECTS.find(p=>p.id===filterId)?.name || 'Toutes dépenses'}</div>
         <div class="total-value" data-count-to="${total}" data-count-fmt="eur">0</div>
         <div class="total-sub">${all.length} entrée${all.length>1?'s':''} · ${sourceProjects.length} projet${sourceProjects.length>1?'s':''}</div>
         <div class="cat-bars">
@@ -911,10 +920,7 @@ function renderBilan() {
   const chartData = fallback ? [{m:'—',v:1,hl:true}] : monthly;
   const monthMax = Math.max(...chartData.map(m => m.v), 1);
 
-  const pillsHtml = `<div class="pill-row" style="margin-bottom:14px">
-    <button class="pill ${!filterId ? 'active' : ''}" data-action="filter-bilan" data-id="">Global</button>
-    ${PROJECTS.map(p => `<button class="pill ${filterId===p.id?'active':''}" data-action="filter-bilan" data-id="${p.id}">${p.name}</button>`).join('')}
-  </div>`;
+  const pillsHtml = '';
 
   const h = `
     <div class="screen">
@@ -1048,9 +1054,7 @@ function renderEntretien() {
 
   const h = `
     <div class="screen">
-      <div class="pill-row">
-        ${PROJECTS.map(p => `<button class="pill ${p.id === project.id ? 'active' : ''}" data-action="select-project" data-id="${p.id}">${p.name}</button>`).join('')}
-      </div>
+
       <div class="card specs-card">
         <div class="specs-label">Specs · ${project.name}</div>
         <div style="height:70px;margin:8px 0">${carSvg(project.color)}</div>
@@ -1345,6 +1349,39 @@ function setTab(tab) {
   render();
 }
 
+function enterProject(projectId) {
+  state.activeProjectId = projectId;
+  state.projectMode = true;
+  state.expenseFilterId = projectId;
+  state.bilanFilterId = projectId;
+  state.aiResult = null;
+  $('#nav-home').style.display = 'none';
+  $('#nav-project').style.display = 'flex';
+  const p = PROJECTS.find(proj => proj.id === projectId);
+  if (p) {
+    $('#nav-back-label').textContent = 'Accueil';
+    const ht = document.getElementById('header-title');
+    const hs = document.getElementById('header-sub');
+    if (ht) ht.textContent = p.name.toUpperCase();
+    if (hs) hs.textContent = [p.plate, p.year].filter(Boolean).join(' · ') || 'Projet';
+  }
+  setTab('expenses');
+}
+
+function backToProjects() {
+  state.projectMode = false;
+  state.activeProjectId = PROJECTS[0]?.id || null;
+  state.expenseFilterId = null;
+  state.bilanFilterId = null;
+  $('#nav-home').style.display = 'flex';
+  $('#nav-project').style.display = 'none';
+  const ht = document.getElementById('header-title');
+  const hs = document.getElementById('header-sub');
+  if (ht) ht.textContent = 'GARAGETRACK';
+  if (hs) hs.textContent = 'Carnet de bord · v2.4';
+  setTab('projects');
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // EVENTS
 // ════════════════════════════════════════════════════════════════════════
@@ -1372,9 +1409,10 @@ document.addEventListener('click', (e) => {
     openSheet('Saisie manuelle', sheetNewSession());
   }
   else if (action === 'select-project') {
-    state.activeProjectId = t.dataset.id;
-    state.aiResult = null;
-    render();
+    enterProject(t.dataset.id);
+  }
+  else if (action === 'back-to-projects') {
+    backToProjects();
   }
   else if (action === 'filter-expenses') {
     state.expenseFilterId = t.dataset.id || null;
@@ -1699,6 +1737,7 @@ document.addEventListener('pointerdown', (e) => {
 async function init() {
   loadLocal();
   if (PROJECTS.length > 0) state.activeProjectId = PROJECTS[0].id;
+  state.projectMode = false;
   render();
   requestAnimationFrame(moveIndicator);
   if (getSupabaseUrl() && getSupabaseKey()) {

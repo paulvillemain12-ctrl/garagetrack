@@ -1397,7 +1397,7 @@ document.addEventListener('click', (e) => {
 
   if (action === 'open-project') {
     const p = projectById(t.dataset.id);
-    openSheet('Projet · Détail', sheetProjectDetail(p));
+    enterProject(t.dataset.id);
   }
   else if (action === 'new-project') {
     openSheet('Nouveau projet', sheetNewProject());

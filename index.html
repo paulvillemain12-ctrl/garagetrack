@@ -993,6 +993,11 @@ function renderBilan() {
         }).join('')}
       </div>
     </div>
+    <div style="padding:16px">
+      <button class="form-submit" data-action="export-pdf" style="display:flex;align-items:center;justify-content:center;gap:8px">
+        <span>↓</span> Exporter le rapport PDF
+      </button>
+    </div>
   `;
   $('#main').innerHTML = h;
   setTimeout(() => animateCounters($('#main')), 30);
@@ -1323,6 +1328,81 @@ function sheetNewExpense() {
 // ════════════════════════════════════════════════════════════════════════
 // ROUTING
 // ════════════════════════════════════════════════════════════════════════
+function exportPDF() {
+  const pid = state.bilanFilterId || state.activeProjectId;
+  const proj = pid ? PROJECTS.find(p => p.id === pid) : null;
+  const projects = proj ? [proj] : PROJECTS;
+  const dateStr = new Date().toLocaleDateString('fr-FR');
+
+  const projectsHtml = projects.map(p => {
+    const spent = p.expenses.reduce((s, e) => s + e.amount, 0);
+    const hrs = p.sessions.reduce((s, s2) => s + s2.hours, 0);
+    const coutTotal = spent + p.purchase;
+    const marge = p.target - coutTotal;
+    const taux = hrs > 0 ? marge / hrs : 0;
+
+    const depRows = [...p.expenses].sort((a,b) => (b.date||'').localeCompare(a.date||'')).map(e =>
+      `<tr><td>${e.date||'—'}</td><td>${e.desc}</td><td>${e.vendor||'—'}</td><td>${e.cat}</td><td style="text-align:right;font-weight:600">${e.amount.toFixed(2)} €</td></tr>`
+    ).join('');
+
+    const cats = {};
+    p.expenses.forEach(e => { cats[e.cat] = (cats[e.cat]||0) + e.amount; });
+    const catRows = Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
+      `<tr><td>${k}</td><td style="text-align:right;font-weight:600">${v.toFixed(2)} €</td><td style="text-align:right;color:#666">${spent>0?Math.round(v/spent*100):0}%</td></tr>`
+    ).join('');
+
+    return `
+      <div style="page-break-after:always;padding-bottom:32px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #84cc16">
+          <div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:3px;color:#888;margin-bottom:6px">GARAGETRACK</div>
+            <h1 style="font-size:28px;font-weight:900;color:#0a0a0a;margin:0">${p.name.toUpperCase()}</h1>
+            <p style="font-size:13px;color:#666;margin:4px 0 0">${[p.plate, p.year].filter(Boolean).join(' · ') || ''}</p>
+          </div>
+          <div style="text-align:center;padding:16px 20px;background:${marge>=0?'#f0fdf4':'#fef2f2'};border:2px solid ${marge>=0?'#27ae60':'#e74c3c'};border-radius:10px">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#888;margin-bottom:4px">MARGE ESTIMÉE</div>
+            <div style="font-size:32px;font-weight:900;color:${marge>=0?'#27ae60':'#e74c3c'}">${marge>=0?'+':''}${Math.round(marge)} €</div>
+            <div style="font-size:12px;color:#666">${taux>=0?'+':''}${taux.toFixed(1)} €/h · ${hrs.toFixed(1)} h</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+          ${[['Achat voiture', p.purchase],['Pièces / travaux', spent],['Coût total', coutTotal],['Revente visée', p.target]].map(([l,v]) =>
+            `<div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:10px;color:#888;margin-bottom:4px">${l}</div><div style="font-size:18px;font-weight:700">${Math.round(v)} €</div></div>`
+          ).join('')}
+        </div>
+
+        ${catRows ? `<h2 style="font-size:14px;font-weight:700;letter-spacing:2px;color:#888;margin-bottom:12px">RÉPARTITION PAR CATÉGORIE</h2>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px">
+          <tr style="background:#f0f0f0"><th style="padding:8px 10px;text-align:left">Catégorie</th><th style="padding:8px 10px;text-align:right">Montant</th><th style="padding:8px 10px;text-align:right">Part</th></tr>
+          ${catRows}
+          <tr style="font-weight:700;border-top:2px solid #ddd;background:#f9f9f9"><td style="padding:8px 10px">Total pièces</td><td style="padding:8px 10px;text-align:right">${spent.toFixed(2)} €</td><td></td></tr>
+        </table>` : ''}
+
+        ${depRows ? `<h2 style="font-size:14px;font-weight:700;letter-spacing:2px;color:#888;margin-bottom:12px">DÉTAIL DES PIÈCES (${p.expenses.length})</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <tr style="background:#f0f0f0"><th style="padding:8px 10px;text-align:left">Date</th><th style="padding:8px 10px;text-align:left">Description</th><th style="padding:8px 10px;text-align:left">Fournisseur</th><th style="padding:8px 10px;text-align:left">Catégorie</th><th style="padding:8px 10px;text-align:right">Montant</th></tr>
+          ${depRows}
+          <tr style="font-weight:700;border-top:2px solid #ddd;background:#f9f9f9"><td colspan="4" style="padding:8px 10px">Total</td><td style="padding:8px 10px;text-align:right">${spent.toFixed(2)} €</td></tr>
+        </table>` : ''}
+      </div>`;
+  }).join('');
+
+  const doc = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+    <title>Rapport GarageTrack · ${dateStr}</title>
+    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:32px;background:#fff}@media print{body{padding:20px}}</style>
+  </head><body>${projectsHtml}<div style="text-align:center;margin-top:32px;padding-top:16px;border-top:1px solid #ddd;font-size:11px;color:#aaa">Généré par GarageTrack · ${dateStr}</div></body></html>`;
+
+  const blob = new Blob([doc], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'rapport-garagetrack-' + new Date().toISOString().slice(0,10) + '.html';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Rapport généré ✓ — Ouvre-le dans Safari puis imprime en PDF');
+}
+
 function render() {
   if (state.tab === 'projects') renderProjects();
   else if (state.tab === 'expenses') renderExpenses();
@@ -1413,6 +1493,9 @@ document.addEventListener('click', (e) => {
   }
   else if (action === 'back-to-projects') {
     backToProjects();
+  }
+  else if (action === 'export-pdf') {
+    exportPDF();
   }
   else if (action === 'filter-expenses') {
     state.expenseFilterId = t.dataset.id || null;

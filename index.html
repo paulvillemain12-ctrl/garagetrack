@@ -340,13 +340,13 @@
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <button onclick="openSheet('Sauvegarde', sheetBackup())" style="width:32px;height:32px;border-radius:8px;background:var(--surface-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer">
+      <button id="btn-backup" style="width:32px;height:32px;border-radius:8px;background:var(--surface-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
       </button>
-      <button onclick="openSheet('Connexion Supabase', sheetSupabase())" style="width:32px;height:32px;border-radius:8px;background:var(--surface-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer">
+      <button id="btn-supabase" style="width:32px;height:32px;border-radius:8px;background:var(--surface-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
       </button>
-      <div class="sync-pill" onclick="openSheet('Connexion Supabase', sheetSupabase())">
+      <div class="sync-pill" id="btn-sync">
         <div class="sync-dot"></div>
         <div class="sync-text">Sync</div>
       </div>
@@ -1946,6 +1946,12 @@ async function init() {
 
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
+// Wire up header buttons after DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btn-backup')?.addEventListener('click', () => openSheet('Sauvegarde', sheetBackup()));
+  document.getElementById('btn-supabase')?.addEventListener('click', () => openSheet('Connexion Supabase', sheetSupabase()));
+  document.getElementById('btn-sync')?.addEventListener('click', () => openSheet('Connexion Supabase', sheetSupabase()));
+});
 init();
 </script>
 

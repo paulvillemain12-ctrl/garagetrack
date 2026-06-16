@@ -420,7 +420,11 @@ async function sbFetch(path, options = {}) {
   const url = getSupabaseUrl();
   const key = getSupabaseKey();
   if (!url || !key) return null;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+  try {
   const res = await fetch(url + '/rest/v1/' + path, {
+    signal: controller.signal,
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -430,9 +434,16 @@ async function sbFetch(path, options = {}) {
       ...(options.headers || {})
     }
   });
-  if (!res.ok) { console.error('Supabase error:', res.status); return null; }
-  const text = await res.text();
-  return text ? JSON.parse(text) : [];
+    clearTimeout(timeout);
+    if (!res.ok) { console.error('Supabase error:', res.status); return null; }
+    const text = await res.text();
+    return text ? JSON.parse(text) : [];
+  } catch(e) {
+    clearTimeout(timeout);
+    if (e.name === 'AbortError') console.warn('Supabase timeout:', path);
+    else console.error('Supabase fetch error:', e);
+    return null;
+  }
 }
 
 async function loadFromSupabase() {
@@ -458,6 +469,7 @@ async function loadFromSupabase() {
       PROJECTS.push({
         id: p.id, name: p.nom || '', plate: p.immat || '', year: p.annee || '',
         purchase: p.achat || 0, budget: p.budget || 0, target: p.revente || 0,
+        type: p.type || 'prestation',
         km: 0, color: '#84cc16', progress: 0, photo: p.photo || null,
         notes: p.notes || '', expenses: deps, sessions: sess
       });
@@ -484,7 +496,8 @@ async function sbSaveProject(p) {
   await sbFetch('projets', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
     id: p.id, nom: p.name, immat: p.plate, annee: p.year ? String(p.year) : '',
     achat: p.purchase, budget: p.budget, revente: p.target,
-    notes: p.notes || '', photo: p.photo || null, created_at: new Date().toISOString()
+    notes: p.notes || '', photo: p.photo || null, type: p.type || 'prestation',
+    created_at: new Date().toISOString()
   })});
 }
 
@@ -1165,6 +1178,12 @@ function sheetNewProject() {
         <div class="form-field"><label>Budget pièces (€)</label><input name="budget" type="number" placeholder="6500"></div>
         <div class="form-field"><label>Revente visée (€)</label><input name="target" type="number" placeholder="14000"></div>
       </div>
+      <div class="form-field"><label>Type de projet</label>
+        <select name="type">
+          <option value="prestation">Prestation entretien</option>
+          <option value="revente">Achat / Revente</option>
+        </select>
+      </div>
       <button type="submit" class="form-submit">Créer le projet</button>
     </form>
   `;
@@ -1329,78 +1348,127 @@ function sheetNewExpense() {
 // ROUTING
 // ════════════════════════════════════════════════════════════════════════
 function exportPDF() {
+  const TVA = 0.20;
+  const TAUX_MO = 35; // €/h
   const pid = state.bilanFilterId || state.activeProjectId;
   const proj = pid ? PROJECTS.find(p => p.id === pid) : null;
   const projects = proj ? [proj] : PROJECTS;
   const dateStr = new Date().toLocaleDateString('fr-FR');
 
   const projectsHtml = projects.map(p => {
-    const spent = p.expenses.reduce((s, e) => s + e.amount, 0);
+    const isPresta = (p.type || 'prestation') === 'prestation';
+    const spentTTC = p.expenses.reduce((s, e) => s + e.amount, 0);
+    const spentHT = spentTTC / (1 + TVA);
+    const tvaAmount = spentTTC - spentHT;
     const hrs = p.sessions.reduce((s, s2) => s + s2.hours, 0);
-    const coutTotal = spent + p.purchase;
+    const moHT = hrs * TAUX_MO;
+    const moTVA = moHT * TVA;
+    const moTTC = moHT + moTVA;
+    const totalHT = spentHT + moHT;
+    const totalTVA = tvaAmount + moTVA;
+    const totalTTC = spentTTC + moTTC;
+
+    // Pour achat/revente
+    const coutTotal = spentTTC + p.purchase;
     const marge = p.target - coutTotal;
-    const taux = hrs > 0 ? marge / hrs : 0;
+    const tauxH = hrs > 0 ? marge / hrs : 0;
 
-    const depRows = [...p.expenses].sort((a,b) => (b.date||'').localeCompare(a.date||'')).map(e =>
-      `<tr><td>${e.date||'—'}</td><td>${e.desc}</td><td>${e.vendor||'—'}</td><td>${e.cat}</td><td style="text-align:right;font-weight:600">${e.amount.toFixed(2)} €</td></tr>`
-    ).join('');
+    const depRows = [...p.expenses].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(e => {
+      const ht = e.amount / (1 + TVA);
+      const tva = e.amount - ht;
+      return `<tr>
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">${e.date||'—'}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0"><strong>${e.desc}</strong>${e.vendor?'<br><span style="font-size:11px;color:#888">'+e.vendor+'</span>':''}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${ht.toFixed(2)} €</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${tva.toFixed(2)} €</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">${e.amount.toFixed(2)} €</td>
+      </tr>`;
+    }).join('');
 
-    const cats = {};
-    p.expenses.forEach(e => { cats[e.cat] = (cats[e.cat]||0) + e.amount; });
-    const catRows = Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([k,v]) =>
-      `<tr><td>${k}</td><td style="text-align:right;font-weight:600">${v.toFixed(2)} €</td><td style="text-align:right;color:#666">${spent>0?Math.round(v/spent*100):0}%</td></tr>`
-    ).join('');
-
-    return `
-      <div style="page-break-after:always;padding-bottom:32px">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #84cc16">
-          <div>
-            <div style="font-size:11px;font-weight:700;letter-spacing:3px;color:#888;margin-bottom:6px">GARAGETRACK</div>
-            <h1 style="font-size:28px;font-weight:900;color:#0a0a0a;margin:0">${p.name.toUpperCase()}</h1>
-            <p style="font-size:13px;color:#666;margin:4px 0 0">${[p.plate, p.year].filter(Boolean).join(' · ') || ''}</p>
-          </div>
-          <div style="text-align:center;padding:16px 20px;background:${marge>=0?'#f0fdf4':'#fef2f2'};border:2px solid ${marge>=0?'#27ae60':'#e74c3c'};border-radius:10px">
-            <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:#888;margin-bottom:4px">MARGE ESTIMÉE</div>
-            <div style="font-size:32px;font-weight:900;color:${marge>=0?'#27ae60':'#e74c3c'}">${marge>=0?'+':''}${Math.round(marge)} €</div>
-            <div style="font-size:12px;color:#666">${taux>=0?'+':''}${taux.toFixed(1)} €/h · ${hrs.toFixed(1)} h</div>
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
-          ${[['Achat voiture', p.purchase],['Pièces / travaux', spent],['Coût total', coutTotal],['Revente visée', p.target]].map(([l,v]) =>
-            `<div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:10px;color:#888;margin-bottom:4px">${l}</div><div style="font-size:18px;font-weight:700">${Math.round(v)} €</div></div>`
-          ).join('')}
-        </div>
-
-        ${catRows ? `<h2 style="font-size:14px;font-weight:700;letter-spacing:2px;color:#888;margin-bottom:12px">RÉPARTITION PAR CATÉGORIE</h2>
-        <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px">
-          <tr style="background:#f0f0f0"><th style="padding:8px 10px;text-align:left">Catégorie</th><th style="padding:8px 10px;text-align:right">Montant</th><th style="padding:8px 10px;text-align:right">Part</th></tr>
-          ${catRows}
-          <tr style="font-weight:700;border-top:2px solid #ddd;background:#f9f9f9"><td style="padding:8px 10px">Total pièces</td><td style="padding:8px 10px;text-align:right">${spent.toFixed(2)} €</td><td></td></tr>
-        </table>` : ''}
-
-        ${depRows ? `<h2 style="font-size:14px;font-weight:700;letter-spacing:2px;color:#888;margin-bottom:12px">DÉTAIL DES PIÈCES (${p.expenses.length})</h2>
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <tr style="background:#f0f0f0"><th style="padding:8px 10px;text-align:left">Date</th><th style="padding:8px 10px;text-align:left">Description</th><th style="padding:8px 10px;text-align:left">Fournisseur</th><th style="padding:8px 10px;text-align:left">Catégorie</th><th style="padding:8px 10px;text-align:right">Montant</th></tr>
-          ${depRows}
-          <tr style="font-weight:700;border-top:2px solid #ddd;background:#f9f9f9"><td colspan="4" style="padding:8px 10px">Total</td><td style="padding:8px 10px;text-align:right">${spent.toFixed(2)} €</td></tr>
-        </table>` : ''}
+    const prestaSummary = isPresta ? `
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
+        <thead><tr style="background:#f0f0f0">
+          <th style="padding:10px;text-align:left">Désignation</th>
+          <th style="padding:10px;text-align:right">Montant HT</th>
+          <th style="padding:10px;text-align:right">TVA 20%</th>
+          <th style="padding:10px;text-align:right">TTC</th>
+        </tr></thead>
+        <tbody>
+          <tr><td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">Fournitures et pièces (${p.expenses.length} articles)</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${spentHT.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${tvaAmount.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${spentTTC.toFixed(2)} €</td></tr>
+          <tr><td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">Main d'œuvre — ${hrs.toFixed(1)} h × 35 €/h</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${moHT.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${moTVA.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${moTTC.toFixed(2)} €</td></tr>
+        </tbody>
+        <tfoot>
+          <tr style="background:#f9f9f9"><td style="padding:10px;font-weight:700">TOTAL</td><td style="padding:10px;text-align:right;font-weight:700">${totalHT.toFixed(2)} €</td><td style="padding:10px;text-align:right;font-weight:700">${totalTVA.toFixed(2)} €</td><td style="padding:10px;text-align:right;font-weight:700;font-size:16px;color:#000">${totalTTC.toFixed(2)} €</td></tr>
+        </tfoot>
+      </table>` : `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+        ${[['Achat voiture', Math.round(p.purchase)+' €'],['Pièces', Math.round(spentTTC)+' €'],['Coût total', Math.round(coutTotal)+' €'],['Revente visée', Math.round(p.target)+' €']].map(([l,v])=>
+          `<div style="background:#f5f5f5;border-radius:8px;padding:12px"><div style="font-size:10px;color:#888;margin-bottom:4px">${l}</div><div style="font-size:18px;font-weight:700">${v}</div></div>`
+        ).join('')}
+      </div>
+      <div style="padding:16px;background:${marge>=0?'#f0fdf4':'#fef2f2'};border:1px solid ${marge>=0?'#27ae60':'#e74c3c'};border-radius:8px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:11px;color:#888;font-weight:700;letter-spacing:1px">MARGE ESTIMÉE</div><div style="font-size:28px;font-weight:900;color:${marge>=0?'#27ae60':'#e74c3c'}">${marge>=0?'+':''}${Math.round(marge)} €</div></div>
+        <div style="text-align:right;font-size:13px;color:#666">${tauxH>=0?'+':''}${tauxH.toFixed(1)} €/h<br>${hrs.toFixed(1)} h travaillées</div>
       </div>`;
+
+    return `<div style="page-break-after:always">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:16px;margin-bottom:24px;border-bottom:3px solid #84cc16">
+        <div>
+          <div style="font-size:9px;font-weight:700;letter-spacing:3px;color:#888;margin-bottom:6px">GARAGETRACK · ${isPresta ? 'BON D'INTERVENTION' : 'BILAN ACHAT/REVENTE'}</div>
+          <h1 style="font-size:26px;font-weight:900;color:#0a0a0a;margin:0 0 4px">${p.name.toUpperCase()}</h1>
+          <div style="font-size:13px;color:#666">${[p.plate, p.year].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div style="text-align:right;font-size:12px;color:#888">
+          <div>${dateStr}</div>
+          ${isPresta ? `<div style="margin-top:4px;font-weight:600;color:#0a0a0a">Total TTC : ${totalTTC.toFixed(2)} €</div>` : ''}
+        </div>
+      </div>
+
+      ${prestaSummary}
+
+      ${depRows ? `<h2 style="font-size:11px;font-weight:700;letter-spacing:2px;color:#888;margin-bottom:10px">DÉTAIL DES FOURNITURES</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:24px">
+        <tr style="background:#f0f0f0">
+          <th style="padding:8px 10px;text-align:left">Date</th>
+          <th style="padding:8px 10px;text-align:left">Désignation</th>
+          <th style="padding:8px 10px;text-align:right">HT</th>
+          <th style="padding:8px 10px;text-align:right">TVA</th>
+          <th style="padding:8px 10px;text-align:right">TTC</th>
+        </tr>
+        ${depRows}
+        <tr style="background:#f9f9f9;font-weight:700;border-top:2px solid #ddd">
+          <td colspan="2" style="padding:8px 10px">Total fournitures</td>
+          <td style="padding:8px 10px;text-align:right">${spentHT.toFixed(2)} €</td>
+          <td style="padding:8px 10px;text-align:right">${tvaAmount.toFixed(2)} €</td>
+          <td style="padding:8px 10px;text-align:right">${spentTTC.toFixed(2)} €</td>
+        </tr>
+      </table>` : ''}
+    </div>`;
   }).join('');
 
   const doc = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
-    <title>Rapport GarageTrack · ${dateStr}</title>
-    <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;padding:32px;background:#fff}@media print{body{padding:20px}}</style>
-  </head><body>${projectsHtml}<div style="text-align:center;margin-top:32px;padding-top:16px;border-top:1px solid #ddd;font-size:11px;color:#aaa">Généré par GarageTrack · ${dateStr}</div></body></html>`;
+    <title>${projects.length===1?projects[0].name+' · ':''}Rapport GarageTrack · ${dateStr}</title>
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#fff;padding:32px}
+      h1,h2{font-family:'Helvetica Neue',Arial,sans-serif}
+      @media print{body{padding:16px} @page{margin:16mm}}
+    </style>
+  </head><body>
+    ${projectsHtml}
+    <div style="margin-top:32px;padding-top:12px;border-top:1px solid #e0e0e0;font-size:10px;color:#aaa;text-align:center">
+      Document généré par GarageTrack · ${dateStr}
+    </div>
+  </body></html>`;
 
   const blob = new Blob([doc], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'rapport-garagetrack-' + new Date().toISOString().slice(0,10) + '.html';
+  a.download = 'garagetrack-' + (projects[0]?.name||'rapport').toLowerCase().replace(/\s+/g,'-') + '-' + new Date().toISOString().slice(0,10) + '.html';
   a.click();
   URL.revokeObjectURL(url);
-  toast('Rapport généré ✓ — Ouvre-le dans Safari puis imprime en PDF');
+  toast('Rapport généré ✓ — Ouvre dans Safari → Imprimer → PDF');
 }
 
 function render() {
@@ -1624,6 +1692,7 @@ document.addEventListener('submit', (e) => {
       name: data.name, plate: data.plate || '',
       year: data.year || '', purchase: parseFloat(data.purchase) || 0,
       budget: parseFloat(data.budget) || 0, target: parseFloat(data.target) || 0,
+      type: data.type || 'prestation',
       km: 0, color: '#84cc16', progress: 0, notes: '', photo: photoData,
       expenses: [], sessions: [],
     };
@@ -1817,22 +1886,64 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 // Initial render
+async function connectSupabaseWithRetry(maxRetries = 3) {
+  if (!getSupabaseUrl() || !getSupabaseKey()) return false;
+  for (let i = 0; i < maxRetries; i++) {
+    if (i > 0) {
+      // Attendre avant de retenter (1s, 2s, 3s)
+      await new Promise(r => setTimeout(r, i * 1000));
+      const dot = document.querySelector('.sync-dot');
+      const text = document.querySelector('.sync-text');
+      if (dot) dot.style.background = '#f0883e';
+      if (text) text.textContent = 'Retry ' + i + '/' + (maxRetries-1);
+    }
+    const ok = await loadFromSupabase();
+    if (ok) return true;
+  }
+  return false;
+}
+
 async function init() {
+  // 1. Charger les données locales immédiatement (affichage instantané)
   loadLocal();
   if (PROJECTS.length > 0) state.activeProjectId = PROJECTS[0].id;
   state.projectMode = false;
   render();
   requestAnimationFrame(moveIndicator);
+
+  // 2. Montrer "Connexion..." pendant qu'on se connecte
+  const dot = document.querySelector('.sync-dot');
+  const text = document.querySelector('.sync-text');
   if (getSupabaseUrl() && getSupabaseKey()) {
-    const ok = await loadFromSupabase();
+    if (dot) { dot.style.background = '#f0883e'; dot.style.animation = 'none'; }
+    if (text) text.textContent = 'Connexion…';
+
+    const ok = await connectSupabaseWithRetry(3);
     if (ok) {
       supabaseReady = true;
       if (PROJECTS.length > 0) state.activeProjectId = PROJECTS[0].id;
       updateSyncPill();
       render();
+    } else {
+      // Echec — afficher données locales avec statut offline
+      if (dot) { dot.style.background = '#f85149'; dot.style.animation = 'none'; }
+      if (text) text.textContent = 'Hors ligne';
+      // Réessayer silencieusement après 10 secondes
+      setTimeout(async () => {
+        const retry = await loadFromSupabase();
+        if (retry) {
+          supabaseReady = true;
+          if (PROJECTS.length > 0) state.activeProjectId = PROJECTS[0].id;
+          updateSyncPill();
+          render();
+          toast('Supabase reconnecté ✓');
+        }
+      }, 10000);
     }
+  } else {
+    updateSyncPill();
   }
-  updateSyncPill();
+
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 init();

@@ -868,6 +868,7 @@ function renderTime() {
             <div class="session-date">${fmtDateShort(s.date).toUpperCase()}</div>
             <div class="session-desc">${s.desc}</div>
             <div class="session-hours">${fmtNum(s.hours, 2)} h</div>
+            <button data-action="delete-session" data-sid="${s.id}" data-pid="${project.id}" style="padding:4px 6px;color:var(--text-mute);background:none;border:none;font-size:14px;cursor:pointer;flex-shrink:0">✕</button>
           </div>
         `).join('')}
       </div>
@@ -1661,6 +1662,14 @@ document.addEventListener('click', (e) => {
     const p = projectById(pid);
     if (p) { p.expenses = p.expenses.filter(e => e.id !== eid); saveLocal(); sbDeleteExpense(eid); }
     toast('Dépense supprimée');
+    render();
+  }
+  else if (action === 'delete-session') {
+    const pid = t.dataset.pid;
+    const sid = t.dataset.sid;
+    const p = projectById(pid);
+    if (p) { p.sessions = p.sessions.filter(s => s.id !== sid); saveLocal(); sbDeleteSession(sid); }
+    toast('Session supprimée');
     render();
   }
   else if (action === 'save-session') {

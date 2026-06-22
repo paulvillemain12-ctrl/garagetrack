@@ -1236,7 +1236,7 @@ function sheetEditProject() {
   if (!p) return '<div style="color:var(--text-dim)">Aucun projet</div>';
   return `
     <form id="formEditProject">
-      <input type="hidden" name="id" value="${p.id}">
+      <input type="hidden" name="projectId" value="${p.id}">
       <div class="form-field" style="margin-bottom:12px">
         <div id="editPhotoZone" onclick="document.getElementById('editPhotoInput').click()" style="height:100px;background:var(--surface-alt);border:1.5px dashed var(--border-strong);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;overflow:hidden">
           <img id="editPhotoPreview" src="${p.photo||''}" style="${p.photo?'display:block':'display:none'};width:100%;height:100%;object-fit:cover">
@@ -1816,13 +1816,9 @@ document.addEventListener('submit', (e) => {
   }
   else if (e.target.id === 'formEditProject') {
     e.preventDefault();
-    e.stopPropagation();
-    console.log('formEditProject submit triggered');
     const data = Object.fromEntries(new FormData(e.target));
-    console.log('form data:', data);
-    const p = PROJECTS.find(proj => proj.id === data.id);
-    console.log('found project:', p);
-    if (!p || !data.name) { console.log('STOPPED - missing project or name'); return; }
+    const p = PROJECTS.find(proj => proj.id === data.projectId);
+    if (!p || !data.name) return;
     const photoPreviewImg = document.getElementById('editPhotoPreview');
     const photoData = photoPreviewImg && photoPreviewImg.style.display !== 'none' ? photoPreviewImg.src : p.photo;
     p.name = data.name;

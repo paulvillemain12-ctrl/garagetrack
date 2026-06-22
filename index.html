@@ -1443,7 +1443,6 @@ function sheetExportPDF() {
 }
 
 function exportPDF(mode = 'ttc') {
-  const TVA = 0.20;
   const TAUX_MO = 35; // €/h
   const pid = state.bilanFilterId || state.activeProjectId;
   const proj = pid ? PROJECTS.find(p => p.id === pid) : null;
@@ -1452,15 +1451,13 @@ function exportPDF(mode = 'ttc') {
 
   const projectsHtml = projects.map(p => {
     const isPresta = (p.type || 'prestation') === 'prestation';
+    // Pas de TVA réelle (non assujetti) — le montant payé EST le montant HT affiché
     const spentTTC = p.expenses.reduce((s, e) => s + e.amount, 0);
-    const spentHT = spentTTC / (1 + TVA);
-    const tvaAmount = spentTTC - spentHT;
+    const spentHT = spentTTC;
     const hrs = p.sessions.reduce((s, s2) => s + s2.hours, 0);
     const moHT = hrs * TAUX_MO;
-    const moTVA = moHT * TVA;
-    const moTTC = moHT + moTVA;
+    const moTTC = moHT;
     const totalHT = spentHT + moHT;
-    const totalTVA = tvaAmount + moTVA;
     const totalTTC = spentTTC + moTTC;
     const deposit = p.deposit || 0;
     const soldeHT = totalHT - deposit;
@@ -1472,34 +1469,31 @@ function exportPDF(mode = 'ttc') {
     const tauxH = hrs > 0 ? marge / hrs : 0;
 
     const depRows = [...p.expenses].sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(e => {
-      const ht = e.amount / (1 + TVA);
-      const tva = e.amount - ht;
       return `<tr>
         <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">${e.date||'—'}</td>
         <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0"><strong>${e.desc}</strong>${e.vendor?'<br><span style="font-size:11px;color:#888">'+e.vendor+'</span>':''}</td>
-        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right${mode==='ht'?';font-weight:600':''}">${ht.toFixed(2)} €</td>
-        ${mode==='ht' ? '' : `<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${tva.toFixed(2)} €</td><td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">${e.amount.toFixed(2)} €</td>`}
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">${e.amount.toFixed(2)} €</td>
       </tr>`;
     }).join('');
 
     const modeHT = mode === 'ht';
-    const colspan = modeHT ? 1 : 3;
+    const colspan = 0;
+    const labelMontant = modeHT ? 'Montant HT' : 'Montant TTC';
     const prestaSummary = isPresta ? `
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
         <thead><tr style="background:#f0f0f0">
           <th style="padding:10px;text-align:left">Désignation</th>
-          <th style="padding:10px;text-align:right">Montant HT</th>
-          ${modeHT ? '' : '<th style="padding:10px;text-align:right">TVA 20%</th><th style="padding:10px;text-align:right">TTC</th>'}
+          <th style="padding:10px;text-align:right">${labelMontant}</th>
         </tr></thead>
         <tbody>
-          <tr><td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">Fournitures et pièces (${p.expenses.length} articles)</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;${modeHT?'font-weight:600':''}">${spentHT.toFixed(2)} €</td>${modeHT ? '' : `<td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${tvaAmount.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${spentTTC.toFixed(2)} €</td>`}</tr>
-          <tr><td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">Main d&apos;œuvre — ${hrs.toFixed(1)} h × 35 €/h</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;${modeHT?'font-weight:600':''}">${moHT.toFixed(2)} €</td>${modeHT ? '' : `<td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${moTVA.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${moTTC.toFixed(2)} €</td>`}</tr>
+          <tr><td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">Fournitures et pièces (${p.expenses.length} articles)</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${spentHT.toFixed(2)} €</td></tr>
+          <tr><td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">Main d&apos;œuvre — ${hrs.toFixed(1)} h × 35 €/h</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${moHT.toFixed(2)} €</td></tr>
         </tbody>
         <tfoot>
-          <tr style="background:#f9f9f9"><td style="padding:10px;font-weight:700">${deposit > 0 ? 'TOTAL PRESTATION' : 'TOTAL À RÉGLER'}</td><td style="padding:10px;text-align:right;font-weight:700;${deposit>0?'':(modeHT?'font-size:16px;color:#000':'')}">${totalHT.toFixed(2)} €</td>${modeHT ? '' : `<td style="padding:10px;text-align:right;font-weight:700">${totalTVA.toFixed(2)} €</td><td style="padding:10px;text-align:right;font-weight:700;${deposit>0?'':'font-size:16px;color:#000'}">${totalTTC.toFixed(2)} €</td>`}</tr>
+          <tr style="background:#f9f9f9"><td style="padding:10px;font-weight:700">${deposit > 0 ? 'TOTAL PRESTATION' : 'TOTAL À RÉGLER'}</td><td style="padding:10px;text-align:right;font-weight:700;${deposit>0?'':'font-size:16px;color:#000'}">${totalHT.toFixed(2)} €</td></tr>
           ${deposit > 0 ? `
-          <tr><td colspan="${colspan+1}" style="padding:8px 10px;color:#888;font-style:italic">Acompte déjà versé</td><td style="padding:8px 10px;text-align:right;color:#e74c3c;font-weight:600">− ${deposit.toFixed(2)} €</td></tr>
-          <tr style="background:#f0fdf4;border-top:2px solid #27ae60"><td colspan="${colspan+1}" style="padding:10px;font-weight:900;font-size:14px">TOTAL À RÉGLER (solde)</td><td style="padding:10px;text-align:right;font-weight:900;font-size:17px;color:#27ae60">${(modeHT?soldeHT:soldeTTC).toFixed(2)} €</td></tr>` : ''}
+          <tr><td style="padding:8px 10px;color:#888;font-style:italic">Acompte déjà versé</td><td style="padding:8px 10px;text-align:right;color:#e74c3c;font-weight:600">− ${deposit.toFixed(2)} €</td></tr>
+          <tr style="background:#f0fdf4;border-top:2px solid #27ae60"><td style="padding:10px;font-weight:900;font-size:14px">TOTAL À RÉGLER (solde)</td><td style="padding:10px;text-align:right;font-weight:900;font-size:17px;color:#27ae60">${soldeHT.toFixed(2)} €</td></tr>` : ''}
         </tfoot>
       </table>` : `
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
@@ -1532,14 +1526,12 @@ function exportPDF(mode = 'ttc') {
         <tr style="background:#f0f0f0">
           <th style="padding:8px 10px;text-align:left">Date</th>
           <th style="padding:8px 10px;text-align:left">Désignation</th>
-          <th style="padding:8px 10px;text-align:right">HT</th>
-          ${modeHT ? '' : '<th style="padding:8px 10px;text-align:right">TVA</th><th style="padding:8px 10px;text-align:right">TTC</th>'}
+          <th style="padding:8px 10px;text-align:right">${modeHT ? 'HT' : 'TTC'}</th>
         </tr>
         ${depRows}
         <tr style="background:#f9f9f9;font-weight:700;border-top:2px solid #ddd">
           <td colspan="2" style="padding:8px 10px">Total fournitures</td>
           <td style="padding:8px 10px;text-align:right">${spentHT.toFixed(2)} €</td>
-          ${modeHT ? '' : `<td style="padding:8px 10px;text-align:right">${tvaAmount.toFixed(2)} €</td><td style="padding:8px 10px;text-align:right">${spentTTC.toFixed(2)} €</td>`}
         </tr>
       </table>` : ''}
     </div>`;

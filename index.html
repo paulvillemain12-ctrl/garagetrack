@@ -364,6 +364,9 @@
       <button id="nav-back" data-action="back-to-projects" style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:none;border:none;color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;flex-shrink:0">
         ← <span id="nav-back-label">Accueil</span>
       </button>
+      <button id="nav-edit-project" data-action="open-edit-project" style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;background:none;border:none;color:var(--text-dim);cursor:pointer;flex-shrink:0;margin-right:4px">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+      </button>
       <div style="flex:1;display:flex;overflow:hidden">
         <button class="tab" data-tab="expenses"><span class="tab-icon">€</span><span>Dépenses</span></button>
         <button class="tab" data-tab="time"><span class="tab-icon">◷</span><span>Temps</span></button>
@@ -507,7 +510,7 @@ async function loadFromSupabase() {
       PROJECTS.push({
         id: p.id, name: p.nom || '', plate: p.immat || '', year: p.annee || '',
         purchase: p.achat || 0, budget: p.budget || 0, target: p.revente || 0,
-        type: p.type || 'prestation',
+        type: p.type || 'prestation', deposit: p.deposit || 0,
         km: 0, color: '#84cc16', progress: 0, photo: p.photo || null,
         notes: p.notes || '', expenses: deps, sessions: sess
       });
@@ -531,9 +534,9 @@ function loadLocal() {
 
 async function sbSaveProject(p) {
   if (!supabaseReady) return;
-  await sbFetch('projets', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify({
+  await sbFetch('projets', { method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal', headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({
     id: p.id, nom: p.name, immat: p.plate, annee: p.year ? String(p.year) : '',
-    achat: p.purchase, budget: p.budget, revente: p.target,
+    achat: p.purchase, budget: p.budget, revente: p.target, deposit: p.deposit || 0,
     notes: p.notes || '', photo: p.photo || null, type: p.type || 'prestation',
     created_at: new Date().toISOString()
   })});
@@ -1046,7 +1049,7 @@ function renderBilan() {
       </div>
     </div>
     <div style="padding:16px">
-      <button class="form-submit" data-action="export-pdf" style="display:flex;align-items:center;justify-content:center;gap:8px">
+      <button class="form-submit" data-action="open-export-pdf" style="display:flex;align-items:center;justify-content:center;gap:8px">
         <span>↓</span> Exporter le rapport PDF
       </button>
     </div>
@@ -1228,6 +1231,52 @@ function sheetNewProject() {
   `;
 }
 
+function sheetEditProject() {
+  const p = PROJECTS.find(x => x.id === state.activeProjectId);
+  if (!p) return '<div style="color:var(--text-dim)">Aucun projet</div>';
+  return `
+    <form id="formEditProject">
+      <input type="hidden" name="id" value="${p.id}">
+      <div class="form-field" style="margin-bottom:12px">
+        <div id="editPhotoZone" onclick="document.getElementById('editPhotoInput').click()" style="height:100px;background:var(--surface-alt);border:1.5px dashed var(--border-strong);border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;cursor:pointer;overflow:hidden">
+          <img id="editPhotoPreview" src="${p.photo||''}" style="${p.photo?'display:block':'display:none'};width:100%;height:100%;object-fit:cover">
+          <div id="editPhotoPlaceholder" style="${p.photo?'display:none':'display:block'};font-size:12px;color:var(--text-dim);text-align:center">📷 Photo de la voiture</div>
+        </div>
+        <input type="file" id="editPhotoInput" name="photoFile" accept="image/*" style="display:none" onchange="handleEditProjectPhoto(this)">
+      </div>
+      <div class="form-field"><label>Nom / modèle *</label><input name="name" value="${p.name||''}" required></div>
+      <div class="form-field"><label>Immatriculation</label><input name="plate" value="${p.plate||''}"></div>
+      <div class="form-row">
+        <div class="form-field"><label>Année</label><input name="year" type="number" value="${p.year||''}"></div>
+        <div class="form-field"><label>Prix d'achat (€)</label><input name="purchase" type="number" value="${p.purchase||0}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-field"><label>Budget pièces (€)</label><input name="budget" type="number" value="${p.budget||0}"></div>
+        <div class="form-field"><label>Revente visée (€)</label><input name="target" type="number" value="${p.target||0}"></div>
+      </div>
+      <div class="form-field"><label>Type de projet</label>
+        <select name="type">
+          <option value="prestation" ${p.type==='prestation'?'selected':''}>Prestation entretien</option>
+          <option value="revente" ${p.type==='revente'?'selected':''}>Achat / Revente</option>
+        </select>
+      </div>
+      <div class="form-field"><label>Acompte reçu (€)</label><input name="deposit" type="number" value="${p.deposit||0}" placeholder="0"></div>
+      <button type="submit" class="form-submit">Enregistrer les modifications</button>
+    </form>
+  `;
+}
+
+async function handleEditProjectPhoto(input) {
+  if (!input.files[0]) return;
+  try {
+    const compressed = await compressImage(input.files[0], 1000, 0.7);
+    const img = document.getElementById('editPhotoPreview');
+    img.src = compressed;
+    img.style.display = 'block';
+    document.getElementById('editPhotoPlaceholder').style.display = 'none';
+  } catch(e) { toast('Erreur photo', 'warn'); }
+}
+
 let scanPhotoData = null;
 async function handleScanPhoto(input) {
   if (!input.files[0]) return;
@@ -1385,7 +1434,15 @@ function sheetNewExpense() {
 // ════════════════════════════════════════════════════════════════════════
 // ROUTING
 // ════════════════════════════════════════════════════════════════════════
-function exportPDF() {
+function sheetExportPDF() {
+  return `
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.5">Choisis le format d'affichage des montants sur le document.</div>
+    <button class="form-submit" onclick="closeSheet();exportPDF('ht')" style="margin-bottom:8px">Mode Pro — Montants en HT</button>
+    <button class="form-submit" onclick="closeSheet();exportPDF('ttc')" style="background:var(--surface-alt);color:var(--text);border:1px solid var(--border)">Mode Particulier — Montants en TTC</button>
+  `;
+}
+
+function exportPDF(mode = 'ttc') {
   const TVA = 0.20;
   const TAUX_MO = 35; // €/h
   const pid = state.bilanFilterId || state.activeProjectId;
@@ -1417,26 +1474,25 @@ function exportPDF() {
       return `<tr>
         <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">${e.date||'—'}</td>
         <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0"><strong>${e.desc}</strong>${e.vendor?'<br><span style="font-size:11px;color:#888">'+e.vendor+'</span>':''}</td>
-        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${ht.toFixed(2)} €</td>
-        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${tva.toFixed(2)} €</td>
-        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">${e.amount.toFixed(2)} €</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right${mode==='ht'?';font-weight:600':''}">${ht.toFixed(2)} €</td>
+        ${mode==='ht' ? '' : `<td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right">${tva.toFixed(2)} €</td><td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600">${e.amount.toFixed(2)} €</td>`}
       </tr>`;
     }).join('');
 
+    const modeHT = mode === 'ht';
     const prestaSummary = isPresta ? `
       <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:24px">
         <thead><tr style="background:#f0f0f0">
           <th style="padding:10px;text-align:left">Désignation</th>
           <th style="padding:10px;text-align:right">Montant HT</th>
-          <th style="padding:10px;text-align:right">TVA 20%</th>
-          <th style="padding:10px;text-align:right">TTC</th>
+          ${modeHT ? '' : '<th style="padding:10px;text-align:right">TVA 20%</th><th style="padding:10px;text-align:right">TTC</th>'}
         </tr></thead>
         <tbody>
-          <tr><td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">Fournitures et pièces (${p.expenses.length} articles)</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${spentHT.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${tvaAmount.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${spentTTC.toFixed(2)} €</td></tr>
-          <tr><td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">Main d&apos;œuvre — ${hrs.toFixed(1)} h × 35 €/h</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${moHT.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${moTVA.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${moTTC.toFixed(2)} €</td></tr>
+          <tr><td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">Fournitures et pièces (${p.expenses.length} articles)</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;${modeHT?'font-weight:600':''}">${spentHT.toFixed(2)} €</td>${modeHT ? '' : `<td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${tvaAmount.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${spentTTC.toFixed(2)} €</td>`}</tr>
+          <tr><td style="padding:9px 10px;border-bottom:1px solid #f0f0f0">Main d&apos;œuvre — ${hrs.toFixed(1)} h × 35 €/h</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;${modeHT?'font-weight:600':''}">${moHT.toFixed(2)} €</td>${modeHT ? '' : `<td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0">${moTVA.toFixed(2)} €</td><td style="padding:9px 10px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:600">${moTTC.toFixed(2)} €</td>`}</tr>
         </tbody>
         <tfoot>
-          <tr style="background:#f9f9f9"><td style="padding:10px;font-weight:700">TOTAL</td><td style="padding:10px;text-align:right;font-weight:700">${totalHT.toFixed(2)} €</td><td style="padding:10px;text-align:right;font-weight:700">${totalTVA.toFixed(2)} €</td><td style="padding:10px;text-align:right;font-weight:700;font-size:16px;color:#000">${totalTTC.toFixed(2)} €</td></tr>
+          <tr style="background:#f9f9f9"><td style="padding:10px;font-weight:700">TOTAL</td><td style="padding:10px;text-align:right;font-weight:700;${modeHT?'font-size:16px;color:#000':''}">${totalHT.toFixed(2)} €</td>${modeHT ? '' : `<td style="padding:10px;text-align:right;font-weight:700">${totalTVA.toFixed(2)} €</td><td style="padding:10px;text-align:right;font-weight:700;font-size:16px;color:#000">${totalTTC.toFixed(2)} €</td>`}</tr>
         </tfoot>
       </table>` : `
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
@@ -1458,7 +1514,7 @@ function exportPDF() {
         </div>
         <div style="text-align:right;font-size:12px;color:#888">
           <div>${dateStr}</div>
-          ${isPresta ? `<div style="margin-top:4px;font-weight:600;color:#0a0a0a">Total TTC : ${totalTTC.toFixed(2)} €</div>` : ''}
+          ${isPresta ? `<div style="margin-top:4px;font-weight:600;color:#0a0a0a">Total ${modeHT?'HT':'TTC'} : ${(modeHT?totalHT:totalTTC).toFixed(2)} €</div>${p.deposit > 0 ? `<div style="margin-top:2px;font-size:11px;color:#666">Acompte versé : ${p.deposit.toFixed(2)} €</div><div style="font-size:11px;font-weight:700;color:#0a0a0a">Solde dû : ${((modeHT?totalHT:totalTTC) - p.deposit).toFixed(2)} €</div>` : ''}` : ''}
         </div>
       </div>
 
@@ -1470,15 +1526,13 @@ function exportPDF() {
           <th style="padding:8px 10px;text-align:left">Date</th>
           <th style="padding:8px 10px;text-align:left">Désignation</th>
           <th style="padding:8px 10px;text-align:right">HT</th>
-          <th style="padding:8px 10px;text-align:right">TVA</th>
-          <th style="padding:8px 10px;text-align:right">TTC</th>
+          ${modeHT ? '' : '<th style="padding:8px 10px;text-align:right">TVA</th><th style="padding:8px 10px;text-align:right">TTC</th>'}
         </tr>
         ${depRows}
         <tr style="background:#f9f9f9;font-weight:700;border-top:2px solid #ddd">
           <td colspan="2" style="padding:8px 10px">Total fournitures</td>
           <td style="padding:8px 10px;text-align:right">${spentHT.toFixed(2)} €</td>
-          <td style="padding:8px 10px;text-align:right">${tvaAmount.toFixed(2)} €</td>
-          <td style="padding:8px 10px;text-align:right">${spentTTC.toFixed(2)} €</td>
+          ${modeHT ? '' : `<td style="padding:8px 10px;text-align:right">${tvaAmount.toFixed(2)} €</td><td style="padding:8px 10px;text-align:right">${spentTTC.toFixed(2)} €</td>`}
         </tr>
       </table>` : ''}
     </div>`;
@@ -1600,8 +1654,11 @@ document.addEventListener('click', (e) => {
   else if (action === 'back-to-projects') {
     backToProjects();
   }
-  else if (action === 'export-pdf') {
-    exportPDF();
+  else if (action === 'open-export-pdf') {
+    openSheet('Format du document', sheetExportPDF());
+  }
+  else if (action === 'open-edit-project') {
+    openSheet('Modifier le projet', sheetEditProject());
   }
   else if (action === 'filter-expenses') {
     state.expenseFilterId = t.dataset.id || null;
@@ -1738,7 +1795,7 @@ document.addEventListener('submit', (e) => {
       name: data.name, plate: data.plate || '',
       year: data.year || '', purchase: parseFloat(data.purchase) || 0,
       budget: parseFloat(data.budget) || 0, target: parseFloat(data.target) || 0,
-      type: data.type || 'prestation',
+      type: data.type || 'prestation', deposit: 0,
       km: 0, color: '#84cc16', progress: 0, notes: '', photo: photoData,
       expenses: [], sessions: [],
     };
@@ -1748,6 +1805,32 @@ document.addEventListener('submit', (e) => {
     if (PROJECTS.length === 1) state.activeProjectId = newP.id;
     closeSheet();
     toast('Projet créé');
+    render();
+  }
+  else if (e.target.id === 'formEditProject') {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target));
+    const p = PROJECTS.find(proj => proj.id === data.id);
+    if (!p || !data.name) return;
+    const photoPreviewImg = document.getElementById('editPhotoPreview');
+    const photoData = photoPreviewImg && photoPreviewImg.style.display !== 'none' ? photoPreviewImg.src : p.photo;
+    p.name = data.name;
+    p.plate = data.plate || '';
+    p.year = data.year || '';
+    p.purchase = parseFloat(data.purchase) || 0;
+    p.budget = parseFloat(data.budget) || 0;
+    p.target = parseFloat(data.target) || 0;
+    p.type = data.type || 'prestation';
+    p.deposit = parseFloat(data.deposit) || 0;
+    p.photo = photoData;
+    saveLocal();
+    sbSaveProject(p);
+    closeSheet();
+    toast('Projet mis à jour ✓');
+    const headerTitle = document.getElementById('header-title');
+    const headerSub = document.getElementById('header-sub');
+    if (headerTitle) headerTitle.textContent = p.name.toUpperCase();
+    if (headerSub) headerSub.textContent = [p.plate, p.year].filter(Boolean).join(' · ') || 'Projet';
     render();
   }
   else if (e.target.id === 'formNewExpense') {

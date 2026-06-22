@@ -421,7 +421,7 @@ async function sbFetch(path, options = {}) {
   const key = getSupabaseKey();
   if (!url || !key) return null;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+  const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
   try {
   const res = await fetch(url + '/rest/v1/' + path, {
     signal: controller.signal,
@@ -1769,7 +1769,22 @@ function sheetSupabase() {
     <div class="form-field"><label>Project URL</label><input type="text" id="sbUrl" placeholder="https://xxxx.supabase.co" value="${getSupabaseUrl()}"></div>
     <div class="form-field"><label>Clé publique</label><input type="password" id="sbKey" placeholder="eyJhbGci..." value="${getSupabaseKey()}"></div>
     <button class="form-submit" onclick="connectSupabase()">Connecter</button>
+    ${getSupabaseUrl() ? `<button class="form-submit" style="background:var(--surface-alt);color:var(--text);border:1px solid var(--border);margin-top:8px" onclick="retryConnection()">↻ Réessayer la connexion</button>` : ''}
     <button class="form-submit" style="background:var(--surface-alt);color:var(--text);border:1px solid var(--border);margin-top:8px" onclick="importFromBackup()">Importer depuis sauvegarde JSON</button>`;
+}
+
+async function retryConnection() {
+  closeSheet();
+  toast('Connexion en cours…');
+  const ok = await loadFromSupabase();
+  if (ok) {
+    supabaseReady = true;
+    updateSyncPill();
+    render();
+    toast('Connecté ✓');
+  } else {
+    toast('Échec — vérifie ta connexion internet', 'warn');
+  }
 }
 
 async function connectSupabase() {
@@ -1895,23 +1910,6 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 // Initial render
-async function connectSupabaseWithRetry(maxRetries = 3) {
-  if (!getSupabaseUrl() || !getSupabaseKey()) return false;
-  for (let i = 0; i < maxRetries; i++) {
-    if (i > 0) {
-      // Attendre avant de retenter (1s, 2s, 3s)
-      await new Promise(r => setTimeout(r, i * 1000));
-      const dot = document.querySelector('.sync-dot');
-      const text = document.querySelector('.sync-text');
-      if (dot) dot.style.background = '#f0883e';
-      if (text) text.textContent = 'Retry ' + i + '/' + (maxRetries-1);
-    }
-    const ok = await loadFromSupabase();
-    if (ok) return true;
-  }
-  return false;
-}
-
 async function init() {
   // 1. Charger les données locales immédiatement (affichage instantané)
   loadLocal();
@@ -1920,34 +1918,22 @@ async function init() {
   render();
   requestAnimationFrame(moveIndicator);
 
-  // 2. Montrer "Connexion..." pendant qu'on se connecte
+  // 2. Une seule tentative de connexion Supabase, rapide
   const dot = document.querySelector('.sync-dot');
   const text = document.querySelector('.sync-text');
   if (getSupabaseUrl() && getSupabaseKey()) {
     if (dot) { dot.style.background = '#f0883e'; dot.style.animation = 'none'; }
     if (text) text.textContent = 'Connexion…';
 
-    const ok = await connectSupabaseWithRetry(3);
+    const ok = await loadFromSupabase();
     if (ok) {
       supabaseReady = true;
       if (PROJECTS.length > 0) state.activeProjectId = PROJECTS[0].id;
       updateSyncPill();
       render();
     } else {
-      // Echec — afficher données locales avec statut offline
       if (dot) { dot.style.background = '#f85149'; dot.style.animation = 'none'; }
       if (text) text.textContent = 'Hors ligne';
-      // Réessayer silencieusement après 10 secondes
-      setTimeout(async () => {
-        const retry = await loadFromSupabase();
-        if (retry) {
-          supabaseReady = true;
-          if (PROJECTS.length > 0) state.activeProjectId = PROJECTS[0].id;
-          updateSyncPill();
-          render();
-          toast('Supabase reconnecté ✓');
-        }
-      }, 10000);
     }
   } else {
     updateSyncPill();
